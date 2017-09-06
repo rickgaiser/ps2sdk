@@ -1,0 +1,10 @@
+bdm_IMPORTS_start
+I_bdm_connect_bd
+I_bdm_disconnect_bd
+I_bdm_connect_fs
+I_bdm_disconnect_fs
+bdm_IMPORTS_end
+
+stdio_IMPORTS_start
+I_printf
+stdio_IMPORTS_end
