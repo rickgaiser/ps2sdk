@@ -152,7 +152,7 @@ static int scsi_warmup(struct block_device* bd) {
 
 	memset(&id, 0, sizeof(inquiry_data));
 	if ((stat = scsi_cmd_inquiry(bd, &id, sizeof(inquiry_data))) < 0) {
-		M_ERROR("scsi_cmd_inquiry %d\n", stat);
+		M_PRINTF("ERROR: scsi_cmd_inquiry %d\n", stat);
 		return -1;
 	}
 
@@ -162,11 +162,11 @@ static int scsi_warmup(struct block_device* bd) {
 
 	while((stat = scsi_cmd_test_unit_ready(bd)) != 0)
 	{
-		M_ERROR("scsi_cmd_test_unit_ready %d\n", stat);
+		M_PRINTF("ERROR: scsi_cmd_test_unit_ready %d\n", stat);
 
 		stat = scsi_cmd_request_sense(bd, &sd, sizeof(sense_data));
 		if (stat != 0)
-			M_ERROR("scsi_cmd_request_sense %d\n", stat);
+			M_PRINTF("ERROR: scsi_cmd_request_sense %d\n", stat);
 
 		if ((sd.error_code == 0x70) && (sd.sense_key != 0x00))
 		{
@@ -174,9 +174,9 @@ static int scsi_warmup(struct block_device* bd) {
 
 			if ((sd.sense_key == 0x02) && (sd.add_sense_code == 0x04) && (sd.add_sense_qual == 0x02))
 			{
-				M_ERROR("Additional initalization is required for this device!\n");
+				M_PRINTF("ERROR: Additional initalization is required for this device!\n");
 				if ((stat = scsi_cmd_start_stop_unit(bd)) != 0) {
-					M_ERROR("scsi_cmd_start_stop_unit %d\n", stat);
+					M_PRINTF("ERROR: scsi_cmd_start_stop_unit %d\n", stat);
 					return -1;
 				}
 			}
@@ -184,7 +184,7 @@ static int scsi_warmup(struct block_device* bd) {
 	}
 
 	if ((stat = scsi_cmd_read_capacity(bd, &rcd, sizeof(read_capacity_data))) != 0) {
-		M_ERROR("scsi_cmd_read_capacity %d\n", stat);
+		M_PRINTF("ERROR: scsi_cmd_read_capacity %d\n", stat);
 		return -1;
 	}
 

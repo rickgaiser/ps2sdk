@@ -21,7 +21,7 @@ int _start(int argc, char** argv)
 	// initialize the SCSI driver
 	if(scsi_init() != 0)
 	{
-		M_ERROR("initializing SCSI driver!\n");
+		M_PRINTF("ERROR: initializing SCSI driver!\n");
 		return MODULE_NO_RESIDENT_END;
 	}
 
