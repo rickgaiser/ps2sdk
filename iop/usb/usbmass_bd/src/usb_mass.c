@@ -154,110 +154,6 @@ static int usb_bulk_clear_halt(mass_dev* dev, int endpoint) {
 	return ret;
 }
 
-static void usb_bulk_reset(mass_dev* dev, int mode) {
-	int ret;
-	usb_callback_data cb_data;
-
-	cb_data.semh = dev->ioSema;
-
-	//Call Bulk only mass storage reset
-	ret = sceUsbdControlTransfer(
-		dev->controlEp, 		//default pipe
-		0x21,			//bulk reset
-		0xFF,
-		0,
-		dev->interfaceNumber, //interface number
-		0,			//length
-		NULL,			//data
-		usb_callback,
-		(void*) &cb_data
-		);
-
-	if (ret == USB_RC_OK) {
-		WaitSema(cb_data.semh);
-		ret = cb_data.returnCode;
-	}
-	if(ret == USB_RC_OK) {
-		//clear bulk-in endpoint
-		if (mode & 0x01)
-			ret = usb_bulk_clear_halt(dev, USB_BLK_EP_IN);
-	}
-	if(ret == USB_RC_OK) {
-		//clear bulk-out endpoint
-		if (mode & 0x02)
-			ret = usb_bulk_clear_halt(dev, USB_BLK_EP_OUT);
-	}
-	if(ret != USB_RC_OK){
-		M_DEBUG("ERROR: sending reset %d to device %d.\n", ret, dev->devId);
-		dev->status |= USBMASS_DEV_STAT_ERR;
-	}
-}
-
-static int usb_bulk_status(mass_dev* dev, csw_packet* csw, unsigned int tag) {
-	int ret;
-	usb_callback_data cb_data;
-
-	cb_data.semh = dev->ioSema;
-
-	csw->signature = CSW_TAG;
-	csw->tag = tag;
-	csw->dataResidue = 0;
-	csw->status = 0;
-
-	ret = sceUsbdBulkTransfer(
-		dev->bulkEpI,		//bulk input pipe
-		csw,			//data ptr
-		13,	//data length
-		usb_callback,
-		(void*)&cb_data
-        );
-
-	if (ret == USB_RC_OK) {
-		WaitSema(cb_data.semh);
-		ret = cb_data.returnCode;
-
-#ifdef DEBUG
-		if (cb_data.returnSize != 13)
-			M_PRINTF("bulk csw.status returnSize: %i != 13\n", cb_data.returnSize);
-		if (csw->dataResidue != 0)
-			M_PRINTF("bulk csw.status residue: %i\n", csw->dataResidue);
-		M_PRINTF("bulk csw result: %d, csw.status: %i\n", ret, csw->status);
-#endif
-	}
-
-	return ret;
-}
-
-/* see flow chart in the usbmassbulk_10.pdf doc (page 15)
-
-	Returned values:
-		<0 Low-level USBD error.
-		0 = Command completed successfully.
-		1 = Command failed.
-		2 = Phase error.
-*/
-static int usb_bulk_manage_status(mass_dev* dev, unsigned int tag) {
-	int ret;
-	csw_packet csw;
-
-	//M_DEBUG("usb_bulk_manage_status 1 ...\n");
-	ret = usb_bulk_status(dev, &csw, tag); /* Attempt to read CSW from bulk in endpoint */
-	if (ret != USB_RC_OK) { /* STALL bulk in  -OR- Bulk error */
-		usb_bulk_clear_halt(dev, USB_BLK_EP_IN); /* clear the stall condition for bulk in */
-
-		M_DEBUG("usb_bulk_manage_status error %d ...\n", ret);
-		ret = usb_bulk_status(dev, &csw, tag); /* Attempt to read CSW from bulk in endpoint */
-	}
-
-	/* CSW not valid or stalled or phase error */
-	if (ret != USB_RC_OK || csw.signature != CSW_TAG || csw.tag != tag || csw.status == 2) {
-		M_PRINTF("usb_bulk_manage_status call reset recovery ...\n");
-		usb_bulk_reset(dev, 3);	/* Perform reset recovery */
-	}
-
-	return((ret == USB_RC_OK && csw.signature == CSW_TAG && csw.tag == tag) ? csw.status : -1);
-}
-
 static int usb_bulk_get_max_lun(struct scsi_interface* scsi) {
 	mass_dev* dev = (mass_dev*)scsi->priv;
 	int ret;
@@ -296,77 +192,101 @@ static int usb_bulk_get_max_lun(struct scsi_interface* scsi) {
 	return ret;
 }
 
-static int usb_bulk_command(mass_dev* dev, cbw_packet* packet) {
-	int ret;
-	usb_callback_data cb_data;
+struct usbmass_cmd {
+	mass_dev* dev;
 
-	if(dev->status & USBMASS_DEV_STAT_ERR) {
-		M_PRINTF("Rejecting I/O to offline device %d.\n", dev->devId);
-		return -1;
+	cbw_packet cbw;
+	csw_packet csw;
+	int cmd_count;
+
+	scsi_cb cb;
+	void* cb_arg;
+
+	int returnCode;
+};
+
+static void scsi_cmd_callback(int resultCode, int bytes, void *arg)
+{
+	struct usbmass_cmd* ucmd = (struct usbmass_cmd*)arg;
+	mass_dev* dev = (mass_dev*)ucmd->dev;
+
+	M_DEBUG("scsi_cmd_callback, result=%d\n", ucmd->state, resultCode);
+
+	ucmd->cmd_count--;
+	if ((resultCode != USB_RC_OK) || (ucmd->cmd_count == 0)) {
+		// TODO: handle error in an async way (cannot block in usb callback)
+		ucmd->returnCode = resultCode;
+		if (ucmd->cb != NULL)
+			ucmd->cb(ucmd->cb_arg);
+		else
+			SignalSema(dev->ioSema);
 	}
-
-	cb_data.semh = dev->ioSema;
-
-	ret =  sceUsbdBulkTransfer(
-		dev->bulkEpO,		//bulk output pipe
-		packet,			//data ptr
-		31,	//data length
-		usb_callback,
-		(void*)&cb_data
-	);
-
-	if (ret == USB_RC_OK) {
-		WaitSema(cb_data.semh);
-		ret = cb_data.returnCode;
-	}
-	if (ret != USB_RC_OK) {
-		M_DEBUG("ERROR: sending bulk command %d. Calling reset recovery.\n", ret);
-		usb_bulk_reset(dev, 3);
-	}
-
-	return ret;
 }
 
 #define MAX_SIZE (4*1024)
-int usb_scsi_cmd(struct scsi_interface* scsi, const unsigned char *cmd, unsigned int cmd_len, unsigned char *data, unsigned int data_len, unsigned int data_wr)
+int usb_queue_cmd(struct scsi_interface* scsi, const unsigned char *cmd, unsigned int cmd_len, unsigned char *data, unsigned int data_len, unsigned int data_wr, scsi_cb cb, void* cb_arg)
 {
 	mass_dev* dev = (mass_dev*)scsi->priv;
-	int rcode = USB_RC_OK, result = -EIO, retries;
+	static struct usbmass_cmd ucmd;
+	int result;
 	static unsigned int tag = 0;
-	static cbw_packet cbw;
+
+	M_DEBUG("__usb_scsi_cmd_async\n");
 
 	tag++;
-	cbw.signature = CBW_TAG;
-	cbw.tag = tag;
-	cbw.dataTransferLength = data_len;
-	cbw.flags = 0x80;
-	cbw.lun = 0;
-	cbw.comLength = cmd_len;
 
-	memcpy(cbw.comData, cmd, cmd_len);
+	// Create USB command
+	ucmd.dev = dev;
+	ucmd.cmd_count = 0;
+	ucmd.cb = cb;
+	ucmd.cb_arg = cb_arg;
 
-	for (retries = USB_XFER_MAX_RETRIES; retries > 0; retries--) {
-		// Send command
-		if (usb_bulk_command(dev, &cbw) == USB_RC_OK){
-			// Send/Receive data
-			while (data_len > 0) {
-				unsigned int tr_len = (data_len < MAX_SIZE) ? data_len : MAX_SIZE;
-				// NOTE: return value ignored
-				//usb_bulk_transfer(dev, data_wr ? USB_BLK_EP_OUT : USB_BLK_EP_IN, data, tr_len);
-				sceUsbdBulkTransfer(data_wr ? dev->bulkEpO : dev->bulkEpI, data, tr_len, NULL, NULL);
-				data_len -= tr_len;
-				data += tr_len;
-			}
+	// Create CBW
+	ucmd.cbw.signature = CBW_TAG;
+	ucmd.cbw.tag = tag;
+	ucmd.cbw.dataTransferLength = data_len;
+	ucmd.cbw.flags = 0x80;
+	ucmd.cbw.lun = 0;
+	ucmd.cbw.comLength = cmd_len;
+	memcpy(ucmd.cbw.comData, cmd, cmd_len);
 
-			// Check status
-			result = usb_bulk_manage_status(dev, tag);
+	// Create CSW
+	ucmd.csw.signature = CSW_TAG;
+	ucmd.csw.tag = tag;
+	ucmd.csw.dataResidue = 0;
+	ucmd.csw.status = 0;
 
-			if(rcode == USB_RC_OK && result == 0)
-				return 0;
-		}
+	// Send the CBW (command)
+	ucmd.cmd_count++;
+	result = sceUsbdBulkTransfer(dev->bulkEpO,	&ucmd.cbw, 31, scsi_cmd_callback, (void*)&ucmd);
+	if (result != USB_RC_OK)
+		return -EIO;
+
+	// Send/Receive data
+	while (data_len > 0) {
+		unsigned int tr_len = (data_len < MAX_SIZE) ? data_len : MAX_SIZE;
+		ucmd.cmd_count++;
+		result = sceUsbdBulkTransfer(data_wr ? dev->bulkEpO : dev->bulkEpI, data, tr_len, scsi_cmd_callback, (void*)&ucmd);
+		if (result != USB_RC_OK)
+			return -EIO;
+		data_len -= tr_len;
+		data += tr_len;
 	}
 
-	return result;
+	// Receive CSW (status)
+	ucmd.cmd_count++;
+	result = sceUsbdBulkTransfer(dev->bulkEpI, &ucmd.csw, 13, scsi_cmd_callback, (void*)&ucmd);
+	if (result != USB_RC_OK)
+		return -EIO;
+
+	if (cb == NULL) {
+		// Wait for SCSI command to finish
+		WaitSema(dev->ioSema);
+		if (ucmd.returnCode != USB_RC_OK)
+			return -EIO;
+	}
+
+	return 0;
 }
 
 static mass_dev* usb_mass_findDevice(int devId, int create)
@@ -616,7 +536,7 @@ int usb_mass_init(void)
 
 		g_mass_device[i].scsi.priv = &g_mass_device[i];
 		g_mass_device[i].scsi.get_max_lun = usb_bulk_get_max_lun;
-		g_mass_device[i].scsi.scsi_cmd = usb_scsi_cmd;
+		g_mass_device[i].scsi.queue_cmd = usb_queue_cmd;
 	}
 
 	driver.next       = NULL;
