@@ -176,62 +176,12 @@ static int scsi_warmup(struct block_device* bd) {
 //
 // Block device interface
 //
-#define SCSI_READ_AHEAD
-#ifdef SCSI_READ_AHEAD
-int io_sem;
-void scsi_read_async_cb(void* arg)
-{
-	SignalSema(io_sem);
-}
-
-static u32 last_sector = 0xffffffff;
-static u16 last_count = 0;
-static char ra_buffer[16*1024];
-static u32 ra_sector = 0xffffffff;
-static u16 ra_count = 0;
-static u16 ra_active = 0;
-#endif
 static int scsi_read(struct block_device* bd, u32 sector, void* buffer, u16 count)
 {
 	M_DEBUG("scsi_read: sector=%d, count=%d\n", sector, count);
 
-#ifdef SCSI_READ_AHEAD
-	// Wait for any read-ahead actions to finish
-	if (ra_active == 1) {
-		WaitSema(io_sem);
-		ra_active = 0;
-	}
-
-	if ((ra_sector == sector) && (ra_count >= count)) {
-		//printf("using read-ahead sector=%d, count=%d\n", sector, count);
-		// Read data from read-ahead buffer
-		memcpy(buffer, ra_buffer, bd->sectorSize * count);
-	}
-	else {
-		//printf("using disk sector=%d, count=%d\n", sector, count);
-		// Read data from disk
-		if(scsi_cmd_rw_sector(bd, sector, buffer, count, 0, NULL, NULL) < 0)
-			return -EIO;
-	}
-
-	// Sequential read detection -> do read-ahead
-	if ((last_sector + last_count) == sector) {
-		if (count <= (16*2)) {
-			//printf("read-ahead: sector=%d, count=%d\n", sector+count, count);
-			if(scsi_cmd_rw_sector(bd, sector+count, ra_buffer, count, 0, scsi_read_async_cb, NULL) == 0) {
-				ra_active = 1;
-				ra_sector = sector+count;
-				ra_count = count;
-			}
-		}
-	}
-
-	last_sector = sector;
-	last_count = count;
-#else
 	if(scsi_cmd_rw_sector(bd, sector, buffer, count, 0, NULL, NULL) < 0)
 		return -EIO;
-#endif
 
 	return count;
 }
@@ -289,20 +239,9 @@ void scsi_disconnect(struct scsi_interface* scsi)
 
 int scsi_init(void)
 {
-#ifdef SCSI_READ_AHEAD
-	iop_sema_t sema;
-#endif
 	int i;
 
 	M_DEBUG("scsi_init\n");
-
-#ifdef SCSI_READ_AHEAD
-	sema.attr = 0;
-	sema.option = 0;
-	sema.initial = 0;
-	sema.max = 1;
-	io_sem = CreateSema(&sema);
-#endif
 
 	for (i = 0; i < NUM_DEVICES; ++i) {
 		g_scsi_bd[i].name = "usb";
