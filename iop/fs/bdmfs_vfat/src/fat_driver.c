@@ -17,14 +17,16 @@
 #endif
 
 #include "common.h"
-#include "scache.h"
 #include "fat_driver.h"
 #include "fat.h"
 
 //#define DEBUG  //comment out this line when not debugging
 #include "module_debug.h"
 
-#define READ_SECTOR(d, a, b)	scache_readSector((d)->cache, (a), (void **)&b)
+#define READ_SECTOR(d, s, buf, c)	(d)->bd->read((d)->bd, (s), buf, c)
+#define WRITE_SECTOR(d, s, buf, c)	(d)->bd->write((d)->bd, (s), buf, c)
+#define FLUSH_SECTORS(d)			(d)->bd->flush((d)->bd)
+#define GET_SBUF()					fatd->sbuf
 
 #define NUM_DRIVES 10
 static fat_driver* g_fatd[NUM_DRIVES];
@@ -93,7 +95,7 @@ static int fat_getClusterChain12(fat_driver* fatd, unsigned int cluster, unsigne
 	int ret;
 	unsigned int i, recordOffset, fatSector, lastFatSector;
 	unsigned char xbuf[4], sectorSpan, cont;
-	unsigned char* sbuf = NULL; //sector buffer
+	unsigned char* sbuf = GET_SBUF(); //sector buffer
 
 	cont = 1;
 	lastFatSector = -1;
@@ -110,7 +112,7 @@ static int fat_getClusterChain12(fat_driver* fatd, unsigned int cluster, unsigne
 			sectorSpan = 1;
 		}
 		if (lastFatSector !=  fatSector || sectorSpan) {
-			ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector, sbuf);
+			ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector, sbuf, 1);
 			if (ret < 0) {
 				M_DEBUG("Read fat12 sector failed! sector=%u! \n", fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector );
 				return -EIO;
@@ -120,7 +122,7 @@ static int fat_getClusterChain12(fat_driver* fatd, unsigned int cluster, unsigne
 			if (sectorSpan) {
 				xbuf[0] = sbuf[fatd->partBpb.sectorSize - 2];
 				xbuf[1] = sbuf[fatd->partBpb.sectorSize - 1];
-				ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector + 1, sbuf);
+				ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector + 1, sbuf, 1);
 				if (ret < 0) {
 					M_DEBUG("Read fat12 sector failed sector=%u! \n", fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector + 1);
 					return -EIO;
@@ -152,7 +154,7 @@ static int fat_getClusterChain16(fat_driver* fatd, unsigned int cluster, unsigne
 	int ret;
 	unsigned int i, indexCount, fatSector, lastFatSector;
 	unsigned char cont;
-	unsigned char* sbuf = NULL; //sector buffer
+	unsigned char* sbuf = GET_SBUF(); //sector buffer
 
 	cont = 1;
 	indexCount = fatd->partBpb.sectorSize / 2; //FAT16->2, FAT32->4
@@ -165,7 +167,7 @@ static int fat_getClusterChain16(fat_driver* fatd, unsigned int cluster, unsigne
 	while(i < bufSize && cont) {
 		fatSector = cluster / indexCount;
 		if (lastFatSector !=  fatSector) {
-			ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector,  sbuf);
+			ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector, sbuf, 1);
 			if (ret < 0) {
 				M_DEBUG("Read fat16 sector failed! sector=%u! \n", fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector );
 				return -EIO;
@@ -190,7 +192,7 @@ static int fat_getClusterChain32(fat_driver* fatd, unsigned int cluster, unsigne
 	int ret;
 	unsigned int i, indexCount, fatSector, lastFatSector;
 	unsigned char cont;
-	unsigned char* sbuf = NULL; //sector buffer
+	unsigned char* sbuf = GET_SBUF(); //sector buffer
 
 	cont = 1;
 	indexCount = fatd->partBpb.sectorSize / 4; //FAT16->2, FAT32->4
@@ -203,7 +205,7 @@ static int fat_getClusterChain32(fat_driver* fatd, unsigned int cluster, unsigne
 	while(i < bufSize && cont) {
 		fatSector = cluster / indexCount;
 		if (lastFatSector !=  fatSector) {
-			ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector,  sbuf);
+			ret = READ_SECTOR(fatd, fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector, sbuf, 1);
 			if (ret < 0) {
 				M_DEBUG("Read fat32 sector failed sector=%u! \n", fatd->partBpb.partStart + fatd->partBpb.resSectors + fatSector );
 				return -EIO;
@@ -597,6 +599,7 @@ static int fat_getDirentryStartCluster(fat_driver* fatd, char* dirName, unsigned
 	unsigned int i, dirSector, startSector, dirPos;
 	unsigned char cont;
 	int ret;
+	unsigned char* sbuf = GET_SBUF(); //sector buffer
 
 	cont = 1;
 	M_DEBUG("getting cluster for dir entry: %s \n", dirName);
@@ -613,14 +616,12 @@ static int fat_getDirentryStartCluster(fat_driver* fatd, char* dirName, unsigned
 	//go through first directory sector till the max number of directory sectors
 	//or stop when no more direntries detected
 	for (i = 0; i < dirSector && cont; i++) {
-		unsigned char* sbuf = NULL; //sector buffer
-
 		//At cluster borders, get correct sector from cluster chain buffer
 		if ((*startCluster != 0) && (i % fatd->partBpb.clusterSize == 0)) {
 			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[(i / fatd->partBpb.clusterSize)]) -i;
 		}
 
-		ret = READ_SECTOR(fatd, startSector + i, sbuf);
+		ret = READ_SECTOR(fatd, startSector + i, sbuf, 1);
 		if (ret < 0) {
 			M_DEBUG("read directory sector failed ! sector=%u\n", startSector + i);
 			return -EIO;
@@ -734,8 +735,8 @@ int fat_readFile(fat_driver* fatd, fat_dir* fatDir, unsigned int filePos, unsign
 	int ret, chainSize;
 	unsigned int i, j, startSector, clusterChainStart, bufSize, sectorSkip, clusterSkip, dataSkip;
 	unsigned char nextChain;
-
 	unsigned int bufferPos, fileCluster, clusterPos;
+	unsigned char* sbuf = GET_SBUF(); //sector buffer
 
 	fat_getClusterAtFilePos(fatd, fatDir, filePos, &fileCluster, &clusterPos);
 	sectorSkip = (filePos - clusterPos) / fatd->partBpb.sectorSize;
@@ -783,9 +784,7 @@ int fat_readFile(fat_driver* fatd, fat_dir* fatDir, unsigned int filePos, unsign
 			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[i]);
 			//process all sectors of the cluster (and skip leading sectors if needed)
 			for (j = 0 + sectorSkip; j < fatd->partBpb.clusterSize && size > 0; j++) {
-				unsigned char* sbuf = NULL; //sector buffer
-
-				ret = READ_SECTOR(fatd, startSector + j, sbuf);
+				ret = READ_SECTOR(fatd, startSector + j, sbuf, 1);
 				if (ret < 0) {
 					M_DEBUG("Read sector failed ! sector=%u\n", startSector + j);
 					return bufferPos;
@@ -818,6 +817,7 @@ int fat_getNextDirentry(fat_driver* fatd, fat_dir_list* fatdlist, fat_dir* fatDi
 	int i, ret;
 	unsigned int startSector, dirSector, dirPos, dirCluster;
 	unsigned char cont, new_entry;
+	unsigned char* sbuf = GET_SBUF(); //sector buffer
 
 	//the getFirst function was not called
 	if (fatdlist->direntryCluster == 0xFFFFFFFF || fatDir == NULL) {
@@ -843,15 +843,13 @@ int fat_getNextDirentry(fat_driver* fatd, fat_dir_list* fatdlist, fat_dir* fatDi
 	new_entry = 1;
 	dirPos = (fatdlist->direntryIndex*32) % fatd->partBpb.sectorSize;
 	for (i = ((fatdlist->direntryIndex*32) / fatd->partBpb.sectorSize); (i < dirSector) && cont; i++) {
-		unsigned char* sbuf = NULL; //sector buffer
-
 		//At cluster borders, get correct sector from cluster chain buffer
 		if ((dirCluster != 0) && (new_entry || (i % fatd->partBpb.clusterSize == 0))) {
 			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[(i / fatd->partBpb.clusterSize)])
 				-i + (i % fatd->partBpb.clusterSize);
 			new_entry = 0;
 		}
-		ret = READ_SECTOR(fatd, startSector + i, sbuf);
+		ret = READ_SECTOR(fatd, startSector + i, sbuf, 1);
 		if (ret < 0) {
 			M_DEBUG("Read directory  sector failed ! sector=%u\n", startSector + i);
 			return -EIO;
@@ -919,7 +917,6 @@ int fat_mount(struct block_device* bd)
 			if (g_fatd[i] != NULL)
 			{
 				g_fatd[i]->bd = NULL;
-				g_fatd[i]->cache = NULL;
 			}
 			fatd = g_fatd[i];
 		}
@@ -941,21 +938,8 @@ int fat_mount(struct block_device* bd)
 		fat_forceUnmount(fatd->bd);
 	}
 
-	if (fatd->cache != NULL)
-	{
-		M_PRINTF("usb fat: ERROR: cache already created\n");
-		scache_kill(fatd->cache);
-		fatd->cache = NULL;
-	}
-
 	if (fat_getPartitionBootSector(bd, 0, &fatd->partBpb) < 0)
 		return -1;
-
-	fatd->cache = scache_init(bd);
-	if (fatd->cache == NULL) {
-		M_PRINTF("Error - scache_init failed\n" );
-		return -1;
-	}
 
 	fatd->bd = bd;
 	fatd->deIdx = 0;
@@ -975,7 +959,6 @@ void fat_forceUnmount(struct block_device* bd)
 	for (i = 0; i < NUM_DRIVES; ++i)
 	{
 		if (g_fatd[i] != NULL && g_fatd[i]->bd == bd) {
-			scache_kill(g_fatd[i]->cache);
 			free(g_fatd[i]);
 			g_fatd[i] = NULL;
 		}

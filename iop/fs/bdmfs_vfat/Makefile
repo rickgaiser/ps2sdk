@@ -8,7 +8,7 @@
 
 IOP_INCS += -I$(PS2SDKSRC)/iop/fs/bdm/include
 
-IOP_OBJS = fs_driver.o fat_driver.o fat_write.o scache.o bdm.o main.o imports.o
+IOP_OBJS = fs_driver.o fat_driver.o fat_write.o bdm.o main.o imports.o
 
 include $(PS2SDKSRC)/Defs.make
 include $(PS2SDKSRC)/iop/Rules.bin.make

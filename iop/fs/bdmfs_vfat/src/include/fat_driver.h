@@ -3,7 +3,6 @@
 
 
 #include <bdm.h>
-#include "scache.h"
 
 
 #define DIR_CHAIN_SIZE 32
@@ -66,8 +65,9 @@ typedef struct _fat_bpb {
 
 typedef struct _fat_driver {
 	struct block_device* bd;
-	cache_set* cache;
 	fat_bpb  partBpb;	//partition bios parameter block
+
+	unsigned char sbuf[512]; // sector buffer
 
 	// modified by Hermes
 #define MAX_DIR_CLUSTER 512
