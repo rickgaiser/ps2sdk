@@ -16,7 +16,25 @@ struct bdm_mounts {
 #define MAX_CONNECTIONS 10
 static struct bdm_mounts g_mount[MAX_CONNECTIONS];
 static struct file_system* g_fs[MAX_CONNECTIONS];
+static bdm_cb g_cb = NULL;
 
+
+void bdm_RegisterCallback(bdm_cb cb)
+{
+	int i;
+
+	M_DEBUG("bdm_RegisterCallback\n");
+
+	g_cb = cb;
+
+	for (i = 0; i < MAX_CONNECTIONS; ++i) {
+		if (g_mount[i].fs != NULL) {
+			if (g_cb != NULL)
+				g_cb(1);
+			break;
+		}
+	}
+}
 
 static void bdm_try_mount(struct bdm_mounts* mount)
 {
@@ -29,6 +47,8 @@ static void bdm_try_mount(struct bdm_mounts* mount)
 			if (g_fs[i]->connect_bd(mount->bd) == 0) {
 				M_PRINTF("%s%dp%d mounted to %s\n", mount->bd->name, mount->bd->devNr, mount->bd->parNr, g_fs[i]->name);
 				mount->fs = g_fs[i];
+				if (g_cb != NULL)
+					g_cb(1);
 				break;
 			}
 		}
@@ -62,6 +82,8 @@ void bdm_disconnect_bd(struct block_device* bd)
 			M_PRINTF("%s%dp%d unmounted from %s\n", bd->name, bd->devNr, bd->parNr, g_mount[i].fs->name);
 			g_mount[i].bd = NULL;
 			g_mount[i].fs = NULL;
+			if (g_cb != NULL)
+				g_cb(0);
 		}
 	}
 }
@@ -85,6 +107,8 @@ void bdm_connect_fs(struct file_system* fs)
 			if (fs->connect_bd(g_mount[i].bd) == 0) {
 				M_PRINTF("%s%dp%d mounted to %s\n", g_mount[i].bd->name, g_mount[i].bd->devNr, g_mount[i].bd->parNr, fs->name);
 				g_mount[i].fs = fs;
+				if (g_cb != NULL)
+					g_cb(1);
 			}
 		}
 	}
