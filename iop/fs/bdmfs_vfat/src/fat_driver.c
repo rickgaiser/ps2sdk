@@ -778,32 +778,45 @@ int fat_readFile(fat_driver* fatd, fat_dir* fatDir, unsigned int filePos, unsign
 			clusterSkip -= MAX_DIR_CLUSTER;
 		}
 
+		/*
+		 * Step 1: align to sector boundary
+		 */
+		if (dataSkip) {
+			M_DEBUG("TODO: not sector aligned!\n", startSector + j);
+			return bufferPos;
+		}
+
 		//process the cluster chain (fatd->cbuf) and skip leading clusters if needed
-		for (i = 0 + clusterSkip; i < chainSize && size > 0; i++) {
+		for (i = 0 + clusterSkip; i < chainSize && size > 0;) {
 			//read cluster and save cluster content
 			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[i]);
-			//process all sectors of the cluster (and skip leading sectors if needed)
-			for (j = 0 + sectorSkip; j < fatd->partBpb.clusterSize && size > 0; j++) {
-				ret = READ_SECTOR(fatd, startSector + j, sbuf, 1);
-				if (ret < 0) {
-					M_DEBUG("Read sector failed ! sector=%u\n", startSector + j);
-					return bufferPos;
-				}
 
-				//compute exact size of transfered bytes
-				if (size < bufSize) {
-					bufSize = size + dataSkip;
-				}
-				if (bufSize > fatd->bd->sectorSize) {
-					bufSize = fatd->bd->sectorSize;
-				}
-				M_DEBUG("memcopy dst=%u, src=%u, size=%u  bufSize=%u \n", bufferPos, dataSkip, bufSize-dataSkip, bufSize);
-				memcpy(buffer+bufferPos, sbuf + dataSkip, bufSize - dataSkip);
-				size-= (bufSize - dataSkip);
-				bufferPos +=  (bufSize - dataSkip);
-				dataSkip = 0;
-				bufSize = fatd->bd->sectorSize;
+			unsigned int max_sectors = size / bufSize;
+			unsigned int sectors = fatd->partBpb.clusterSize - sectorSkip;
+			for (; i < (chainSize-1) && sectors < max_sectors; i++) {
+				if (fatd->cbuf[i] != (fatd->cbuf[i+1]-1))
+					break;
+
+				// Next cluster is right after this one
+				sectors += fatd->partBpb.clusterSize;
 			}
+
+			if (sectors > max_sectors)
+				sectors = max_sectors;
+
+			//printf("reading %d bytes\n", sectors * bufSize);
+
+			//process all sectors of the cluster (and skip leading sectors if needed)
+			ret = READ_SECTOR(fatd, startSector + sectorSkip, buffer + bufferPos, sectors);
+			if (ret < 0) {
+				M_DEBUG("Read sector failed !\n");
+				return bufferPos;
+			}
+
+			//compute exact size of transfered bytes
+			size -= sectors * bufSize;
+			bufferPos +=  sectors * bufSize;
+			dataSkip = 0;
 			sectorSkip = 0;
 		}
 		clusterSkip = 0;
