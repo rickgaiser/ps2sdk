@@ -733,30 +733,41 @@ void fat_getClusterAtFilePos(fat_driver* fatd, fat_dir* fatDir, unsigned int fil
 //---------------------------------------------------------------------------
 int fat_readFile(fat_driver* fatd, fat_dir* fatDir, unsigned int filePos, unsigned char* buffer, unsigned int size) {
 	int ret, chainSize;
-	unsigned int i, j, startSector, clusterChainStart, bufSize, sectorSkip, clusterSkip, dataSkip;
+	unsigned int startSector, clusterChainStart, sectorSkip, cluster, dataSkip;
 	unsigned char nextChain;
 	unsigned int bufferPos, fileCluster, clusterPos;
 	unsigned char* sbuf = GET_SBUF(); //sector buffer
 
 	fat_getClusterAtFilePos(fatd, fatDir, filePos, &fileCluster, &clusterPos);
+
 	sectorSkip = (filePos - clusterPos) / fatd->partBpb.sectorSize;
-	clusterSkip = sectorSkip / fatd->partBpb.clusterSize;
+	cluster = sectorSkip / fatd->partBpb.clusterSize;
 	sectorSkip %= fatd->partBpb.clusterSize;
-	dataSkip  = filePos  % fatd->partBpb.sectorSize;
+	dataSkip  = filePos % fatd->partBpb.sectorSize;
 	bufferPos = 0;
 
-	M_DEBUG("fileCluster = %u,  clusterPos= %u clusterSkip=%u, sectorSkip=%u dataSkip=%u \n",
-		fileCluster, clusterPos, clusterSkip, sectorSkip, dataSkip);
+	M_DEBUG("fileCluster = %u, clusterPos= %u cluster=%u, sectorSkip=%u dataSkip=%u\n",
+		fileCluster, clusterPos, cluster, sectorSkip, dataSkip);
 
 	if (fileCluster < 2) {
 		return 0;
 	}
 
-	bufSize = fatd->bd->sectorSize;
 	nextChain = 1;
 	clusterChainStart = 1;
 
-	while (nextChain && size > 0 ) {
+	// Pre-read size, to align to sector boundary
+	unsigned int size_pre = (dataSkip == 0) ? 0 : (fatd->bd->sectorSize - dataSkip);
+	if (size_pre > size)
+		size_pre = size;
+
+	// Whole sectors to read
+	unsigned int whole_sectors = (size - size_pre) / fatd->bd->sectorSize;
+
+	// Post read size, after reading all whole sectors
+	unsigned int size_post = (size - size_pre) - (whole_sectors * fatd->bd->sectorSize);
+
+	while (nextChain && size > 0) {
 		if((chainSize = fat_getClusterChain(fatd, fileCluster, fatd->cbuf, MAX_DIR_CLUSTER, clusterChainStart))<0){
 			return chainSize;
 		}
@@ -767,7 +778,7 @@ int fat_readFile(fat_driver* fatd, fat_dir* fatDir, unsigned int filePos, unsign
 		}else { //chain fits in the chain buffer completely - no next chain needed
 			nextChain = 0;
 		}
-		while (clusterSkip >= MAX_DIR_CLUSTER) {
+		while (cluster >= MAX_DIR_CLUSTER) {
 			chainSize = fat_getClusterChain(fatd, fileCluster, fatd->cbuf, MAX_DIR_CLUSTER, clusterChainStart);
 			clusterChainStart = 0;
 			if (chainSize >= MAX_DIR_CLUSTER) { //the chain is full, but more chain parts exist
@@ -775,52 +786,91 @@ int fat_readFile(fat_driver* fatd, fat_dir* fatDir, unsigned int filePos, unsign
 			}else { //chain fits in the chain buffer completely - no next chain needed
 				nextChain = 0;
 			}
-			clusterSkip -= MAX_DIR_CLUSTER;
+			cluster -= MAX_DIR_CLUSTER;
 		}
 
 		/*
 		 * Step 1: align to sector boundary
 		 */
-		if (dataSkip) {
-			M_DEBUG("TODO: not sector aligned!\n", startSector + j);
-			return bufferPos;
-		}
-
-		//process the cluster chain (fatd->cbuf) and skip leading clusters if needed
-		for (i = 0 + clusterSkip; i < chainSize && size > 0;) {
-			//read cluster and save cluster content
-			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[i]);
-
-			unsigned int max_sectors = size / bufSize;
-			unsigned int sectors = fatd->partBpb.clusterSize - sectorSkip;
-			for (; i < (chainSize-1) && sectors < max_sectors; i++) {
-				if (fatd->cbuf[i] != (fatd->cbuf[i+1]-1))
-					break;
-
-				// Next cluster is right after this one
-				sectors += fatd->partBpb.clusterSize;
-			}
-
-			if (sectors > max_sectors)
-				sectors = max_sectors;
-
-			//printf("reading %d bytes\n", sectors * bufSize);
-
-			//process all sectors of the cluster (and skip leading sectors if needed)
-			ret = READ_SECTOR(fatd, startSector + sectorSkip, buffer + bufferPos, sectors);
+		if (size_pre > 0) {
+			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[cluster]) + sectorSkip;
+			ret = READ_SECTOR(fatd, startSector, sbuf, 1);
 			if (ret < 0) {
-				M_DEBUG("Read sector failed !\n");
+				M_DEBUG("Read sector failed!\n");
 				return bufferPos;
 			}
 
-			//compute exact size of transfered bytes
-			size -= sectors * bufSize;
-			bufferPos +=  sectors * bufSize;
-			dataSkip = 0;
-			sectorSkip = 0;
+			M_DEBUG("1: reading %d bytes to %d\n", size_pre, bufferPos);
+			memcpy(&buffer[bufferPos], &sbuf[dataSkip], size_pre);
+
+			// Update statistics
+			size -= size_pre;
+			bufferPos += size_pre;
+			sectorSkip++;
+			while (sectorSkip >= fatd->partBpb.clusterSize) {
+				sectorSkip -= fatd->partBpb.clusterSize;
+				cluster++;
+			}
+
+			size_pre = 0;
 		}
-		clusterSkip = 0;
+
+		/*
+		 * Step 2: read whole sectors
+		 */
+		while (cluster < chainSize && whole_sectors > 0) {
+			unsigned int sectors;
+
+			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[cluster]) + sectorSkip;
+
+			// Calculate the number of sectors we can read at once
+			sectors = fatd->partBpb.clusterSize - sectorSkip;
+			for (; cluster < (chainSize-1) && sectors < whole_sectors; cluster++) {
+				if (fatd->cbuf[cluster] != (fatd->cbuf[cluster+1]-1))
+					break;
+				sectors += fatd->partBpb.clusterSize;
+			}
+			if (sectors > whole_sectors)
+				sectors = whole_sectors;
+
+			// Transfer all sectors
+			M_DEBUG("2: reading %d bytes to %d\n", sectors * fatd->bd->sectorSize, bufferPos);
+			ret = READ_SECTOR(fatd, startSector + sectorSkip, buffer + bufferPos, sectors);
+			if (ret < 0) {
+				M_DEBUG("Read sector failed!\n");
+				return bufferPos;
+			}
+
+			// Update statistics
+			whole_sectors -= sectors;
+			size          -= sectors * fatd->bd->sectorSize;
+			bufferPos     += sectors * fatd->bd->sectorSize;
+			sectorSkip += sectors;
+			while (sectorSkip >= fatd->partBpb.clusterSize) {
+				sectorSkip -= fatd->partBpb.clusterSize;
+				cluster++;
+			}
+		}
+
+		/*
+		 * Step 3: read leftovers
+		 */
+		if (whole_sectors == 0 && size_post > 0) {
+			startSector = fat_cluster2sector(&fatd->partBpb, fatd->cbuf[cluster]) + sectorSkip;
+			ret = READ_SECTOR(fatd, startSector, sbuf, 1);
+			if (ret < 0) {
+				M_DEBUG("Read sector failed!\n");
+				return bufferPos;
+			}
+
+			M_DEBUG("3: reading %d bytes to %d\n", size_post, bufferPos);
+			memcpy(&buffer[bufferPos], &sbuf[0], size_post);
+
+			bufferPos += size_post;
+			return bufferPos;
+		}
 	}
+
 	return bufferPos;
 }
 
