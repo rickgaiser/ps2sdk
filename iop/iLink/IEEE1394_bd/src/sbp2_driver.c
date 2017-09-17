@@ -80,7 +80,7 @@ static iop_event_t evfp={
 
 int iLinkIntrCBThreadID;
 static int sbp2_get_max_lun(struct scsi_interface* scsi);
-static int sbp2_scsi_cmd(struct scsi_interface* scsi, const unsigned char *cmd, unsigned int cmd_len, unsigned char *data, unsigned int data_len, unsigned int data_wr);
+static int sbp2_queue_cmd(struct scsi_interface* scsi, const unsigned char *cmd, unsigned int cmd_len, unsigned char *data, unsigned int data_len, unsigned int data_wr, scsi_cb cb, void* cb_arg);
 
 void init_ieee1394DiskDriver(void){
 	int i;
@@ -92,7 +92,7 @@ void init_ieee1394DiskDriver(void){
 
 		SBP2Devices[i].scsi.priv = &SBP2Devices[i];
 		SBP2Devices[i].scsi.get_max_lun = sbp2_get_max_lun;
-		SBP2Devices[i].scsi.scsi_cmd = sbp2_scsi_cmd;
+		SBP2Devices[i].scsi.queue_cmd = sbp2_queue_cmd;
 	}
 
 	sbp2_event_flag=CreateEventFlag(&evfp);
@@ -531,14 +531,14 @@ static int sbp2_get_max_lun(struct scsi_interface* scsi) {
 	return 0;
 }
 
-static int sbp2_scsi_cmd(struct scsi_interface* scsi, const unsigned char *cmd, unsigned int cmd_len, unsigned char *data, unsigned int data_len, unsigned int data_wr)
+static int sbp2_queue_cmd(struct scsi_interface* scsi, const unsigned char *cmd, unsigned int cmd_len, unsigned char *data, unsigned int data_len, unsigned int data_wr, scsi_cb cb, void* cb_arg)
 {
 	struct SBP2Device* dev = (struct SBP2Device*)scsi->priv;
 	int i;
 	int ret;
 	struct CommandDescriptorBlock cdb;
 
-	M_DEBUG("sbp2_scsi_cmd(0x%02x)\n", cmd[0]);
+	M_DEBUG("sbp2_queue_cmd(0x%02x)\n", cmd[0]);
 
 	cdb.misc = ORB_NOTIFY | ORB_REQUEST_FORMAT(0) | CDB_MAX_PAYLOAD(dev->max_payload) | CDB_SPEED(dev->speed);
 	cdb.misc |= data_wr ? CDB_DIRECTION(WRITE_TRANSACTION) : CDB_DIRECTION(READ_TRANSACTION);
@@ -567,7 +567,7 @@ static int sbp2_scsi_cmd(struct scsi_interface* scsi, const unsigned char *cmd, 
 	ret = ieee1394_Sync();
 
 	if (ret != 0) {
-		M_DEBUG("sbp2_scsi_cmd error %d\n", ret);
+		M_DEBUG("sbp2_queue_cmd error %d\n", ret);
 	}
 	else if ((data_len > 0) && (data_wr == 0)) {
 		// BSWAP32 all data we read
