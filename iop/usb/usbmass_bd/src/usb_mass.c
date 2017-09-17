@@ -210,7 +210,7 @@ static void scsi_cmd_callback(int resultCode, int bytes, void *arg)
 	struct usbmass_cmd* ucmd = (struct usbmass_cmd*)arg;
 	mass_dev* dev = (mass_dev*)ucmd->dev;
 
-	M_DEBUG("scsi_cmd_callback, result=%d\n", ucmd->state, resultCode);
+	M_DEBUG("scsi_cmd_callback, result=%d\n", resultCode);
 
 	ucmd->cmd_count--;
 	if ((resultCode != USB_RC_OK) || (ucmd->cmd_count == 0)) {

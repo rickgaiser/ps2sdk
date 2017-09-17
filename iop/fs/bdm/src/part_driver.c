@@ -38,7 +38,6 @@ typedef struct _part_raw_record {
 
 struct partition {
 	struct block_device* bd;
-	part_record rec;
 };
 
 
@@ -75,7 +74,7 @@ static int part_getPartitionTable(struct block_device* bd, part_table* part)
 	int ret;
 	unsigned int i;
 
-	ret = bd->read(bd, 0, sbuf, 1);  // read sector 0 - Disk MBR or boot sector
+	ret = bd->read(bd, bd->sectorOffset, sbuf, 1);  // read sector 0 - Disk MBR or boot sector
 	if (ret < 0) {
 		M_DEBUG("ERROR: part_getPartitionTable read failed %d!\n", ret);
 		return -EIO;
@@ -108,11 +107,11 @@ void part_create(struct block_device* bd, part_record* rec, unsigned int parNr)
 	for (i = 0; i < MAX_PARTITIONS; ++i) {
 		if (g_part[i].bd == NULL) {
 			g_part[i].bd = bd;
-			g_part[i].rec = *rec;
 			g_part_bd[i].name = bd->name;
 			g_part_bd[i].devNr = bd->devNr;
 			g_part_bd[i].parNr = parNr + 1;
 			g_part_bd[i].sectorSize = bd->sectorSize;
+			g_part_bd[i].sectorOffset = bd->sectorOffset + rec->start;
 			g_part_bd[i].sectorCount = rec->count;
 			bdm_connect_bd(&g_part_bd[i]);
 			break;
@@ -162,9 +161,6 @@ void part_disconnect(struct block_device* bd)
 		if (g_part[i].bd == bd) {
 			bdm_disconnect_bd(&g_part_bd[i]);
 			g_part[i].bd = NULL;
-			g_part[i].rec.sid = 0;
-			g_part[i].rec.start = 0;
-			g_part[i].rec.count = 0;
 		}
 	}
 }
@@ -181,7 +177,7 @@ static int part_read(struct block_device* bd, u32 sector, void* buffer, u16 coun
 	if ((part == NULL) || (part->bd == NULL))
 		return -1;
 
-	return part->bd->read(part->bd, sector + part->rec.start, buffer, count);
+	return part->bd->read(part->bd, sector, buffer, count);
 }
 
 static int part_write(struct block_device* bd, u32 sector, const void* buffer, u16 count)
@@ -193,7 +189,7 @@ static int part_write(struct block_device* bd, u32 sector, const void* buffer, u
 	if ((part == NULL) || (part->bd == NULL))
 		return -1;
 
-	return part->bd->write(part->bd, sector + part->rec.start, buffer, count);
+	return part->bd->write(part->bd, sector, buffer, count);
 }
 
 static void part_flush(struct block_device* bd)
@@ -216,9 +212,6 @@ void part_init()
 
 	for (i = 0; i < MAX_PARTITIONS; ++i) {
 		g_part[i].bd = NULL;
-		g_part[i].rec.sid = 0;
-		g_part[i].rec.start = 0;
-		g_part[i].rec.count = 0;
 
 		g_part_bd[i].priv = &g_part[i];
 		g_part_bd[i].read = part_read;

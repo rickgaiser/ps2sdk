@@ -32,6 +32,7 @@ struct block_device {
     unsigned int parNr;
 
 	unsigned int sectorSize;
+	unsigned int sectorOffset;
 	unsigned int sectorCount;
 
     int  (*read )(struct block_device* bd, u32 sector, void* buffer, u16 count);

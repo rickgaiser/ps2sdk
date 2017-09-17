@@ -269,15 +269,15 @@ static void fat_determineFatType(fat_bpb* partBpb) {
 }
 
 //---------------------------------------------------------------------------
-static int fat_getPartitionBootSector(struct block_device* bd, unsigned int sector, fat_bpb* partBpb) {
+static int fat_getPartitionBootSector(struct block_device* bd, fat_bpb* partBpb) {
 	fat_raw_bpb* bpb_raw; //fat16, fat12
 	fat32_raw_bpb* bpb32_raw; //fat32
 	int ret;
 	unsigned char* sbuf = malloc(bd->sectorSize); //sector buffer
 
-	ret = bd->read(bd, sector, sbuf, 1); //read partition boot sector (first sector on partition)
+	ret = bd->read(bd, bd->sectorOffset, sbuf, 1); //read partition boot sector (first sector on partition)
 	if (ret < 0) {
-		M_DEBUG("Read partition boot sector failed sector=%u! \n", sector);
+		M_DEBUG("Read partition boot sector failed sector=%u! \n", bd->sectorOffset);
 		free(sbuf);
 		return -EIO;
 	}
@@ -298,7 +298,7 @@ static int fat_getPartitionBootSector(struct block_device* bd, unsigned int sect
 	if (partBpb->sectorCount == 0) {
 		partBpb->sectorCount = getI32(bpb_raw->sectorCount); // large partition
 	}
-	partBpb->partStart = sector;
+	partBpb->partStart = bd->sectorOffset;
 	partBpb->rootDirStart = partBpb->partStart + (partBpb->fatCount * partBpb->fatSize) + partBpb->resSectors;
 	for (ret = 0; ret < 8; ret++) {
 		partBpb->fatId[ret] = bpb_raw->fatId[ret];
@@ -1001,7 +1001,7 @@ int fat_mount(struct block_device* bd)
 		fat_forceUnmount(fatd->bd);
 	}
 
-	if (fat_getPartitionBootSector(bd, 0, &fatd->partBpb) < 0)
+	if (fat_getPartitionBootSector(bd, &fatd->partBpb) < 0)
 		return -1;
 
 	fatd->bd = bd;
