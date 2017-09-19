@@ -626,7 +626,7 @@ int fat_getDirentrySectorData(fat_driver* fatd, unsigned int* startCluster, unsi
 //---------------------------------------------------------------------------
 static int fat_getDirentryStartCluster(fat_driver* fatd, char* dirName, unsigned int* startCluster, fat_dir* fatDir)
 {
-	fat_direntry_summary dir;
+	static fat_direntry_summary dir; // TOO BIG FOR STACK!
 	unsigned int i, dirSector, startSector, dirPos;
 	unsigned char cont;
 	int ret;
@@ -696,7 +696,7 @@ static int fat_getDirentryStartCluster(fat_driver* fatd, char* dirName, unsigned
 // to search directory - set fatDir as NULL
 int fat_getFileStartCluster(fat_driver* fatd, const char* fname, unsigned int* startCluster, fat_dir* fatDir)
 {
-	char tmpName[FAT_MAX_NAME+1];
+	static char tmpName[FAT_MAX_NAME+1]; // TOO BIG FOR STACK!
 	unsigned int i, offset;
 	int ret;
 
@@ -856,7 +856,7 @@ int fat_readFile(fat_driver* fatd, fat_dir* fatDir, unsigned int filePos, unsign
 //---------------------------------------------------------------------------
 int fat_getNextDirentry(fat_driver* fatd, fat_dir_list* fatdlist, fat_dir* fatDir)
 {
-	fat_direntry_summary dir;
+	static fat_direntry_summary dir; // TOO BIG FOR STACK!
 	int i, ret;
 	unsigned int startSector, dirSector, dirPos, dirCluster;
 	unsigned char cont, new_entry;
