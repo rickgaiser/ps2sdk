@@ -11,3 +11,4 @@ obj/
 ee/erl-loader/src/exports.c
 tools/**/bin/
 Doxyoutput
+*_irx.c
