@@ -667,7 +667,7 @@ int SMAPIoctl(unsigned int command, void *args, unsigned int args_len, void *out
 			result=SmapDriverData.RuntimeStats.TxDroppedFrameCount;
 			break;
 		case NETMAN_NETIF_IOCTL_GET_RX_DROPPED_COUNT:
-			result=SmapDriverData.RuntimeStats.RxDroppedFrameCount;
+			result=SmapDriverData.RuntimeStats.RxDroppedFrameCount + SmapDriverData.RuntimeStats.RxAllocFail + SmapDriverData.RuntimeStats.RxErrorCount;
 			break;
 		case NETMAN_NETIF_IOCTL_ETH_GET_RX_EOVERRUN_CNT:
 			result=SmapDriverData.RuntimeStats.RxFrameOverrunCount;
