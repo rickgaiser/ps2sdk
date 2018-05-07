@@ -50,16 +50,23 @@ static void EthStatusCheckCb(s32 alarm_id, u16 time, void *common)
 	iWakeupThread(*(int*)common);
 }
 
+// FIXME: this does not seem to work properly... time seems a bit random
+static void msleep(u16 time)
+{
+	int ThreadID = GetThreadId();
+
+	SetAlarm(time * 16, &EthStatusCheckCb, &ThreadID);
+	SleepThread();
+}
+
 static int WaitValidNetState(int (*checkingFunction)(void))
 {
-	int ThreadID, retry_cycles;
+	int retry_cycles;
 
 	// Wait for a valid network status;
-	ThreadID = GetThreadId();
 	for(retry_cycles = 0; checkingFunction() == 0; retry_cycles++)
-	{	//Sleep for 1000ms.
-		SetAlarm(1000 * 16, &EthStatusCheckCb, &ThreadID);
-		SleepThread();
+	{
+		msleep(1000);
 
 		if(retry_cycles >= 10)	//10s = 10*1000ms
 			return -1;
@@ -229,7 +236,29 @@ static void ethPrintLinkStatus(void)
 	scr_printf("Flow Control\n");
 }
 
+extern unsigned int udp_packet_count;
+extern unsigned int udp_data_size;
+static void ethPrintStats(void)
+{
+	int i;
+
+	scr_printf("Stats: ");
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_GET_TX_DROPPED_COUNT,     NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_GET_RX_DROPPED_COUNT,     NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_RX_EOVERRUN_CNT,  NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_RX_EBADLEN_CNT,   NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_RX_EBADFCS_CNT,   NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_RX_EBADALIGN_CNT, NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_TX_ELOSSCR_CNT,   NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_TX_EEDEFER_CNT,   NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_TX_ECOLL_CNT,     NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	i = NetManIoctl(NETMAN_NETIF_IOCTL_ETH_GET_TX_EUNDERRUN_CNT, NULL, 0, NULL, 0);	scr_printf("%d ", i);
+	scr_printf("pc=%d, len=%d", udp_packet_count, udp_data_size);
+	scr_printf("\n");
+}
+
 extern void* lwiperf_start_tcp_server_default(void* report_fn, void* report_arg);
+extern void udp_iperf();
 
 int main(int argc, char *argv[])
 {
@@ -304,10 +333,14 @@ int main(int argc, char *argv[])
 	ethPrintIPConfig();
 
 	// Start (LW)IPERF
-	lwiperf_start_tcp_server_default(NULL, NULL);
+	//lwiperf_start_tcp_server_default(NULL, NULL);
+	udp_iperf();
 
 	//At this point, network support has been initialized and the PS2 can be pinged.
-	SleepThread();
+	while (1) {
+		ethPrintStats();
+		msleep(1000);
+	}
 
 end:
 	//To cleanup, just call these functions.

@@ -10,7 +10,7 @@
 LWIP = $(PS2SDKSRC)/common/tcpip/lwip-2.0.0
 
 EE_BIN = tcpip_lwiperf.elf
-EE_OBJS = ps2ip.o lwiperf.o DEV9_irx.o NETMAN_irx.o SMAP_irx.o
+EE_OBJS = ps2ip.o lwiperf.o urxperf.o DEV9_irx.o NETMAN_irx.o SMAP_irx.o
 EE_INCS = -I$(LWIP)/src/include -I$(LWIP)/src/include/ipv4 -I$(PS2SDKSRC)/ee/network/tcpip/src/include
 EE_CFLAGS = -DLWIP_NOASSERT -DLWIP_COMPAT_MUTEX -DLWIP_COMPAT_MUTEX_ALLOWED
 EE_LIBS = -lnetman -lps2ip -ldebug -lpatches
