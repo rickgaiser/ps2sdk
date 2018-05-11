@@ -10,7 +10,7 @@
 LWIP = $(PS2SDKSRC)/common/tcpip/lwip-2.0.0
 
 EE_BIN = tcpip_lwiperf.elf
-EE_OBJS = ps2ip.o lwiperf.o urxperf.o DEV9_irx.o NETMAN_irx.o SMAP_irx.o
+EE_OBJS = ps2ip.o lwiperf.o urxperf.o udpbd.o EEDEBUG_irx.o DEV9_irx.o NETMAN_irx.o SMAP_irx.o
 EE_INCS = -I$(LWIP)/src/include -I$(LWIP)/src/include/ipv4 -I$(PS2SDKSRC)/ee/network/tcpip/src/include
 EE_CFLAGS = -DLWIP_NOASSERT -DLWIP_COMPAT_MUTEX -DLWIP_COMPAT_MUTEX_ALLOWED
 EE_LIBS = -lnetman -lps2ip -ldebug -lpatches
@@ -19,6 +19,9 @@ all: $(EE_BIN)
 
 clean:
 	rm -f $(EE_BIN) $(EE_OBJS) DEV9_irx.c NETMAN_irx.c SMAP_irx.c
+
+EEDEBUG_irx.c: $(PS2SDK)/iop/irx/eedebug.irx
+	bin2c $< EEDEBUG_irx.c EEDEBUG_irx
 
 DEV9_irx.c: $(PS2SDK)/iop/irx/ps2dev9.irx
 	bin2c $< DEV9_irx.c DEV9_irx

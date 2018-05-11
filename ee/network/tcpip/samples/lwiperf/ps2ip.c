@@ -20,6 +20,9 @@
 #include <loadfile.h>
 #include <sbv_patches.h>
 
+extern unsigned char EEDEBUG_irx[];
+extern unsigned int size_EEDEBUG_irx;
+
 extern unsigned char DEV9_irx[];
 extern unsigned int size_DEV9_irx;
 
@@ -259,7 +262,21 @@ static void ethPrintStats(void)
 
 extern void* lwiperf_start_tcp_server_default(void* report_fn, void* report_arg);
 extern void udp_iperf();
+extern void udpbd_init();
+extern void udpbd_read();
 
+//#define EEDEBUG
+#ifdef EEDEBUG
+typedef struct {
+       struct t_SifCmdHeader sifcmd;
+       char text[80];
+} iop_text_data_t;
+static void iopdebug_printk(void *packet, void *arg)
+{
+    iop_text_data_t *data = (iop_text_data_t *)packet;
+	scr_printf("%s", data->text);
+}
+#endif
 int main(int argc, char *argv[])
 {
 	struct ip4_addr IP, NM, GW, DNS;
@@ -276,6 +293,14 @@ int main(int argc, char *argv[])
 	SifInitIopHeap();
 	sbv_patch_enable_lmb();
 
+	init_scr();
+
+#ifdef EEDEBUG
+	//IOP will send debugging output to the EE using eedebug.irx
+	SifAddCmdHandler(0x8000000E, &iopdebug_printk, NULL);
+	SifExecModuleBuffer(EEDEBUG_irx, size_EEDEBUG_irx, 0, NULL, NULL);
+#endif
+
 	//Load modules
 	SifExecModuleBuffer(DEV9_irx, size_DEV9_irx, 0, NULL, NULL);
 	SifExecModuleBuffer(NETMAN_irx, size_NETMAN_irx, 0, NULL, NULL);
@@ -283,8 +308,6 @@ int main(int argc, char *argv[])
 
 	//Initialize NETMAN
 	NetManInit();
-
-	init_scr();
 
 	//The network interface link mode/duplex can be set.
 	EthernetLinkMode = NETMAN_NETIF_ETH_LINK_MODE_AUTO;
@@ -334,11 +357,13 @@ int main(int argc, char *argv[])
 
 	// Start (LW)IPERF
 	//lwiperf_start_tcp_server_default(NULL, NULL);
-	udp_iperf();
+	//udp_iperf();
+	udpbd_init();
 
 	//At this point, network support has been initialized and the PS2 can be pinged.
 	while (1) {
 		ethPrintStats();
+        udpbd_read();
 		msleep(1000);
 	}
 
