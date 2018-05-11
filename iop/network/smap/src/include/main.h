@@ -1,3 +1,11 @@
+#ifndef MAIN_H
+#define MAIN_H
+
+
+#include <thbase.h>
+
+
+
 //In the SONY original, all the calls to DEBUG_PRINTF() were to sceInetPrintf().
 #define DEBUG_PRINTF(args...) printf(args)
 
@@ -66,4 +74,5 @@ void SMAPStop(void);
 void SMAPXmit(void);
 int SMAPGetMACAddress(u8 *buffer);
 
-#include "xfer.h"
+
+#endif

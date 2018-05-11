@@ -20,6 +20,7 @@
 
 #include "main.h"
 #include "xfer.h"
+#include "udpbd.h"
 
 /*	There is a difference in how the transmissions are made,
 	between this driver and the SONY original.
@@ -664,6 +665,8 @@ int SMAPIoctl(unsigned int command, void *args, unsigned int args_len, void *out
 			result=SMAPGetLinkStatus();
 			break;
 		case NETMAN_NETIF_IOCTL_GET_TX_DROPPED_COUNT:
+			//udpbd_init();
+			//udpbd_test();
 			result=SmapDriverData.RuntimeStats.TxDroppedFrameCount;
 			break;
 		case NETMAN_NETIF_IOCTL_GET_RX_DROPPED_COUNT:
