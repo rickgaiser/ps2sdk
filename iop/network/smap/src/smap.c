@@ -503,34 +503,6 @@ static int Dev9IntrCb(int flag){
 	return 0;
 }
 
-static void Dev9PreDmaCbHandler(int bcr, int dir){
-	volatile u8 *smap_regbase;
-	u16 SliceCount;
-
-	smap_regbase=SmapDriverData.smap_regbase;
-	SliceCount=bcr>>16;
-	if(dir!=DMAC_TO_MEM){
-		SMAP_REG16(SMAP_R_TXFIFO_SIZE)=SliceCount;
-		SMAP_REG8(SMAP_R_TXFIFO_CTRL)=SMAP_TXFIFO_DMAEN;
-	}
-	else{
-		SMAP_REG16(SMAP_R_RXFIFO_SIZE)=SliceCount;
-		SMAP_REG8(SMAP_R_RXFIFO_CTRL)=SMAP_RXFIFO_DMAEN;
-	}
-}
-
-static void Dev9PostDmaCbHandler(int bcr, int dir){
-	volatile u8 *smap_regbase;
-
-	smap_regbase=SmapDriverData.smap_regbase;
-	if(dir!=DMAC_TO_MEM){
-		while(SMAP_REG8(SMAP_R_TXFIFO_CTRL)&SMAP_TXFIFO_DMAEN){};
-	}
-	else{
-		while(SMAP_REG8(SMAP_R_RXFIFO_CTRL)&SMAP_RXFIFO_DMAEN){};
-	}
-}
-
 int SMAPStart(void){
 	SaveGP();
 	SetEventFlag(SmapDriverData.Dev9IntrEventFlag, SMAP_EVENT_START);
@@ -967,8 +939,7 @@ int smap_init(int argc, char *argv[]){
 	//Register the interrupt handlers for all SMAP events.
 	for(i=2; i<7; i++) dev9RegisterIntrCb(i, &Dev9IntrCb);
 
-	dev9RegisterPreDmaCb(1, &Dev9PreDmaCbHandler);
-	dev9RegisterPostDmaCb(1, &Dev9PostDmaCbHandler);
+	xfer_init();
 
 	return SetupNetDev();
 }

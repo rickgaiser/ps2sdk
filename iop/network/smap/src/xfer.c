@@ -25,6 +25,41 @@
 extern void *_gp;
 extern struct SmapDriverData SmapDriverData;
 
+
+static void Dev9PreDmaCbHandler(int bcr, int dir){
+	volatile u8 *smap_regbase;
+	u16 SliceCount;
+
+	smap_regbase=SmapDriverData.smap_regbase;
+	SliceCount=bcr>>16;
+	if(dir!=DMAC_TO_MEM){
+		SMAP_REG16(SMAP_R_TXFIFO_SIZE)=SliceCount;
+		SMAP_REG8(SMAP_R_TXFIFO_CTRL)=SMAP_TXFIFO_DMAEN;
+	}
+	else{
+		SMAP_REG16(SMAP_R_RXFIFO_SIZE)=SliceCount;
+		SMAP_REG8(SMAP_R_RXFIFO_CTRL)=SMAP_RXFIFO_DMAEN;
+	}
+}
+
+static void Dev9PostDmaCbHandler(int bcr, int dir){
+	volatile u8 *smap_regbase;
+
+	smap_regbase=SmapDriverData.smap_regbase;
+	if(dir!=DMAC_TO_MEM){
+		while(SMAP_REG8(SMAP_R_TXFIFO_CTRL)&SMAP_TXFIFO_DMAEN){};
+	}
+	else{
+		while(SMAP_REG8(SMAP_R_RXFIFO_CTRL)&SMAP_RXFIFO_DMAEN){};
+	}
+}
+
+void xfer_init(void)
+{
+	dev9RegisterPreDmaCb(1, &Dev9PreDmaCbHandler);
+	dev9RegisterPostDmaCb(1, &Dev9PostDmaCbHandler);
+}
+
 static int SmapDmaTransfer(volatile u8 *smap_regbase, void *buffer, unsigned int size, int direction){
 	unsigned int NumBlocks;
 	int result;
