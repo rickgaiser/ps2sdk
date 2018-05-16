@@ -772,6 +772,9 @@ int fs_ioctl(iop_file_t *fd, int cmd, void *data)
 		case USBMASS_IOCTL_GET_LBA:
 			ret = fat_cluster2sector(&fatd->partBpb, ((fs_rec *)fd->privdata)->dirent.fatdir.startCluster);
 			break;
+		case USBMASS_IOCTL_GET_DRIVERNAME:
+			ret = *(int*)fatd->bd->name;
+			break;
 		default:
 			ret = fs_dummy();
 	}
