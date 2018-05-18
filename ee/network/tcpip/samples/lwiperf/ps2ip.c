@@ -357,13 +357,11 @@ int main(int argc, char *argv[])
 
 	// Start (LW)IPERF
 	//lwiperf_start_tcp_server_default(NULL, NULL);
-	//udp_iperf();
-	udpbd_init();
+	udp_iperf();
 
 	//At this point, network support has been initialized and the PS2 can be pinged.
 	while (1) {
 		ethPrintStats();
-        udpbd_read();
 		msleep(1000);
 	}
 
