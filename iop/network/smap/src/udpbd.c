@@ -163,7 +163,7 @@ int udpbd_init(void)
 	g_pkt.ip_addr_src.addr[0] = 192;
 	g_pkt.ip_addr_src.addr[1] = 168;
 	g_pkt.ip_addr_src.addr[2] = 1;
-//#define SLIM
+#define SLIM
 #ifdef SLIM
 	g_pkt.ip_addr_src.addr[3] = 46;
 #else
@@ -188,7 +188,7 @@ int udpbd_init(void)
 	g_udpbd.write = udpbd_write;
 	g_udpbd.flush = udpbd_flush;
 
-	//bdm_connect_bd(&g_udpbd);
+	bdm_connect_bd(&g_udpbd);
 
 	return 0;
 }
@@ -247,7 +247,7 @@ void udpbd_rx(u16 pointer)
 			break;
 	};
 }
-
+/*
 #define TEST_SECTOR_COUNT 64
 u8 test_buffer[TEST_SECTOR_COUNT*512];
 void udpbd_test(void)
@@ -259,3 +259,4 @@ void udpbd_test(void)
 		udpbd_read(NULL, i*TEST_SECTOR_COUNT, test_buffer, TEST_SECTOR_COUNT);
 	}
 }
+*/

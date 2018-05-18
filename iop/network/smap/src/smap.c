@@ -637,7 +637,6 @@ int SMAPIoctl(unsigned int command, void *args, unsigned int args_len, void *out
 			result=SMAPGetLinkStatus();
 			break;
 		case NETMAN_NETIF_IOCTL_GET_TX_DROPPED_COUNT:
-			//udpbd_init();
 			//udpbd_test();
 			result=SmapDriverData.RuntimeStats.TxDroppedFrameCount;
 			break;
@@ -940,6 +939,7 @@ int smap_init(int argc, char *argv[]){
 	for(i=2; i<7; i++) dev9RegisterIntrCb(i, &Dev9IntrCb);
 
 	xfer_init();
+	udpbd_init();
 
 	return SetupNetDev();
 }

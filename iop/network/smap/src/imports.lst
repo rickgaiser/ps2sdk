@@ -1,3 +1,8 @@
+bdm_IMPORTS_start
+I_bdm_connect_bd
+I_bdm_disconnect_bd
+bdm_IMPORTS_end
+
 thbase_IMPORTS_start
 I_CreateThread
 I_StartThread
