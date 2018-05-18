@@ -150,7 +150,7 @@ int udpbd_init(void)
 	g_pkt.eth_addr_src[4] = 0xbf;
 	g_pkt.eth_addr_src[5] = 0xca;
 	g_pkt.eth_type        = 0x0008; /* Network byte order: 0x800 */
-    // IP
+	// IP
 	g_pkt.ip_hlen         = 0x45;
 	g_pkt.ip_tos          = 0;
 	//g_pkt.ip_len          = ;
@@ -163,27 +163,32 @@ int udpbd_init(void)
 	g_pkt.ip_addr_src.addr[0] = 192;
 	g_pkt.ip_addr_src.addr[1] = 168;
 	g_pkt.ip_addr_src.addr[2] = 1;
+//#define SLIM
+#ifdef SLIM
 	g_pkt.ip_addr_src.addr[3] = 46;
+#else
+	g_pkt.ip_addr_src.addr[3] = 95;
+#endif
 	g_pkt.ip_addr_dst.addr[0] = 192;
 	g_pkt.ip_addr_dst.addr[1] = 168;
 	g_pkt.ip_addr_dst.addr[2] = 1;
 	g_pkt.ip_addr_dst.addr[3] = 198;
-    // UDP
+	// UDP
 	g_pkt.udp_port_src    = IP_PORT(UDPBD_PORT);
 	g_pkt.udp_port_dst    = IP_PORT(UDPBD_PORT);
 	//g_pkt.udp_len         = ;
 	//g_pkt.udp_csum        = ;
 
-    g_udpbd.name = "udpbd";
-    g_udpbd.devNr = 0;
-    g_udpbd.parNr = 0;
+	g_udpbd.name = "udpbd";
+	g_udpbd.devNr = 0;
+	g_udpbd.parNr = 0;
 
-    g_udpbd.priv  = NULL;
-    g_udpbd.read  = udpbd_read;
-    g_udpbd.write = udpbd_write;
-    g_udpbd.flush = udpbd_flush;
+	g_udpbd.priv  = NULL;
+	g_udpbd.read  = udpbd_read;
+	g_udpbd.write = udpbd_write;
+	g_udpbd.flush = udpbd_flush;
 
-//    bdm_connect_bd(&g_udpbd);
+	//bdm_connect_bd(&g_udpbd);
 
 	return 0;
 }
@@ -192,66 +197,65 @@ extern struct SmapDriverData SmapDriverData;
 void udpbd_rx(u16 pointer)
 {
 	USE_SMAP_REGS;
-    udpbd_header_t hdr;
-    u32 * phdr = (u32 *)&hdr;
+	udpbd_header_t hdr;
+	u32 * phdr = (u32 *)&hdr;
 
-    //phdr[0] = UDPBD_HEADER_MAGIC;
-    phdr[1] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
-    phdr[2] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
-    phdr[3] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
+	//phdr[0] = UDPBD_HEADER_MAGIC;
+	phdr[1] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
+	phdr[2] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
+	phdr[3] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
 
-    switch (hdr.cmd) {
-        case UDPBD_CMD_INFO:
-            break;
-        case UDPBD_CMD_READ:
-            if ((g_buffer != NULL) && (g_read_size >= hdr.par1) && (g_cmdid == hdr.cmdid)) {
-                // Validate packet order
-                if (hdr.cmdpkt != g_read_cmdpkt) {
-                    SmapDriverData.RuntimeStats.RxFrameOverrunCount++;
-                    // Error, wakeup caller
-                    g_read_size = 0;
-                    SetEventFlag(g_read_done, 2);
-                    break;
-                }
-                g_read_cmdpkt++;
+	switch (hdr.cmd) {
+		case UDPBD_CMD_INFO:
+			break;
+		case UDPBD_CMD_READ:
+			if ((g_buffer != NULL) && (g_read_size >= hdr.par1) && (g_cmdid == hdr.cmdid)) {
+				// Validate packet order
+				if (hdr.cmdpkt != g_read_cmdpkt) {
+					SmapDriverData.RuntimeStats.RxFrameOverrunCount++;
+					// Error, wakeup caller
+					g_read_size = 0;
+					SetEventFlag(g_read_done, 2);
+					break;
+				}
+				g_read_cmdpkt++;
 
-                // Validate packet data size
-                if ((hdr.par1 > UDPBD_MAX_DATA) || (hdr.par1 & 127)) {
-                    SmapDriverData.RuntimeStats.RxFrameBadLengthCount++;
-                    // Error, wakeup caller
-                    g_read_size = 0;
-                    SetEventFlag(g_read_done, 2);
-                    break;
-                }
+				// Validate packet data size
+				if ((hdr.par1 > UDPBD_MAX_DATA) || (hdr.par1 & 127)) {
+					SmapDriverData.RuntimeStats.RxFrameBadLengthCount++;
+					// Error, wakeup caller
+					g_read_size = 0;
+					SetEventFlag(g_read_done, 2);
+					break;
+				}
 
-                // Directly DMA the packet data into the user buffer
-                //dev9DmaTransfer(1, (u8*)g_buffer + ((hdr.cmdpkt-1) * UDPBD_MAX_DATA), (hdr.par1>>7)<<16|0x20, DMAC_TO_MEM);
-                dev9DmaTransfer(1, g_buffer, (hdr.par1>>7)<<16|0x20, DMAC_TO_MEM);
+				// Directly DMA the packet data into the user buffer
+				dev9DmaTransfer(1, (u8*)g_buffer + ((hdr.cmdpkt-1) * UDPBD_MAX_DATA), (hdr.par1>>7)<<16|0x20, DMAC_TO_MEM);
 
-                g_read_size -= hdr.par1;
-                if (g_read_size == 0) {
-                    // Done, wakeup caller
-                    SetEventFlag(g_read_done, 1);
-                    break;
-                }
-            }
-            else {
-                SmapDriverData.RuntimeStats.RxFrameBadFCSCount++;
-            }
-            break;
-        case UDPBD_CMD_WRITE:
-            break;
-    };
+				g_read_size -= hdr.par1;
+				if (g_read_size == 0) {
+					// Done, wakeup caller
+					SetEventFlag(g_read_done, 1);
+					break;
+				}
+			}
+			else {
+				SmapDriverData.RuntimeStats.RxFrameBadFCSCount++;
+			}
+			break;
+		case UDPBD_CMD_WRITE:
+			break;
+	};
 }
 
 #define TEST_SECTOR_COUNT 64
 u8 test_buffer[TEST_SECTOR_COUNT*512];
 void udpbd_test(void)
 {
-    int i;
+	int i;
 
-    // Read first 100MiB
-    for (i=0; i < (100*1024*1024)/(TEST_SECTOR_COUNT*512); i++) {
-        udpbd_read(NULL, i*TEST_SECTOR_COUNT, test_buffer, TEST_SECTOR_COUNT);
-    }
+	// Read first 100MiB
+	for (i=0; i < (100*1024*1024)/(TEST_SECTOR_COUNT*512); i++) {
+		udpbd_read(NULL, i*TEST_SECTOR_COUNT, test_buffer, TEST_SECTOR_COUNT);
+	}
 }
