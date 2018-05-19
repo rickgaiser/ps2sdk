@@ -617,7 +617,16 @@ static inline int SMAPSetLinkMode(int mode){
 	return result;
 }
 
+int udpbd_initialized=0;
 static inline int SMAPGetLinkStatus(void){
+	int status = ((SmapDriverData.SmapIsInitialized && SmapDriverData.LinkStatus)?NETMAN_NETIF_ETH_LINK_STATE_UP:NETMAN_NETIF_ETH_LINK_STATE_DOWN);
+
+	// HACK: start UDP Block Device
+	if (udpbd_initialized == 0 && status != 0) {
+		udpbd_init();
+		udpbd_initialized=1;
+	}
+
 	return((SmapDriverData.SmapIsInitialized && SmapDriverData.LinkStatus)?NETMAN_NETIF_ETH_LINK_STATE_UP:NETMAN_NETIF_ETH_LINK_STATE_DOWN);
 }
 
@@ -939,7 +948,6 @@ int smap_init(int argc, char *argv[]){
 	for(i=2; i<7; i++) dev9RegisterIntrCb(i, &Dev9IntrCb);
 
 	xfer_init();
-	udpbd_init();
 
 	return SetupNetDev();
 }
