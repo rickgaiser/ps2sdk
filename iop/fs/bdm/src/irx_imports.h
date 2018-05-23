@@ -21,6 +21,8 @@
 #include <bdm.h>
 #include <loadcore.h>
 #include <stdio.h>
+#include <thbase.h>
+#include <thevent.h>
 
 
 #endif /* IOP_IRX_IMPORTS_H */

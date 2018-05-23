@@ -15,7 +15,7 @@ IRX_ID("bdm", MAJOR_VER, MINOR_VER);
 
 
 extern struct irx_export_table _exp_bdm;
-extern void bdm_init();
+extern int bdm_init();
 extern void part_init();
 
 
@@ -29,7 +29,10 @@ int _start( int argc, char *argv[])
 	}
 
 	// initialize the block device manager
-	bdm_init();
+	if (bdm_init() < 0) {
+		M_PRINTF("ERROR: BDM init failed!\n");
+		return MODULE_NO_RESIDENT_END;
+	}
 
 	// initialize the partition driver
 	part_init();
