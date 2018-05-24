@@ -7,6 +7,9 @@
 #include "xfer.h"
 #include "udpbd.h"
 
+//#define M_PRINTF(format, args...) printf("UDPBD: " format, ## args)
+//#define M_DEBUG M_PRINTF
+#define M_DEBUG
 
 #define UDPBD_MAX_RETRIES 4
 static struct block_device g_udpbd;
@@ -48,6 +51,8 @@ static int udpbd_send(udpbd_pkt_t *udp_pkt)
 	size_t pktsize = sizeof(udpbd_pkt_t);
 	u32 csum;
 
+	M_DEBUG("%s\n", __func__);
+
 	udp_pkt->ip_len = htons(pktsize - 14);	/* Subtract the ethernet header.  */
 	udp_pkt->ip_csum = 0;
 	csum = checksum(&udp_pkt->ip_hlen, 20);	/* Checksum the IP header (20 bytes).  */
@@ -68,9 +73,9 @@ static int udpbd_read(struct block_device* bd, u32 sector, void* buffer, u16 cou
 	u32 EFBits;
 	int retries;
 
-	//M_DEBUG("%s: sector=%d, count=%d\n", __func__, sector, count);
+	M_DEBUG("%s: sector=%d, count=%d\n", __func__, sector, count);
 
-	for (retries = UDPBD_MAX_RETRIES; retries > 0; retries--) {
+	for (retries = 0; retries < UDPBD_MAX_RETRIES; retries++) {
 		g_cmdid++;
 		g_buffer = buffer;
 		g_read_size = count * 512;
@@ -107,7 +112,7 @@ static int udpbd_write(struct block_device* bd, u32 sector, const void* buffer, 
 
 	//M_DEBUG("%s: sector=%d, count=%d\n", __func__, sector, count);
 
-	//for (retries = UDPBD_MAX_RETRIES; retries > 0; retries--) {
+	//for (retries = 0; retries < UDPBD_MAX_RETRIES; retries++) {
 	//	if (scsi_cmd_rw_sector(bd, sector, buffer, count, 1, NULL, NULL) == 0) {
 	//		return count;
 	//	}
@@ -179,9 +184,13 @@ int udpbd_init(void)
 	//g_pkt.udp_len         = ;
 	//g_pkt.udp_csum        = ;
 
-	g_udpbd.name = "udpbd";
+	g_udpbd.name  = "udp";
 	g_udpbd.devNr = 0;
 	g_udpbd.parNr = 0;
+
+	g_udpbd.sectorSize   = 512;
+	g_udpbd.sectorOffset = 0;
+	g_udpbd.sectorCount  = 10*1024*1024*2; // Sector count (10GiB)
 
 	g_udpbd.priv  = NULL;
 	g_udpbd.read  = udpbd_read;
@@ -244,6 +253,19 @@ void udpbd_rx(u16 pointer)
 			}
 			break;
 		case UDPBD_CMD_WRITE:
+			break;
+		case UDPBD_CMD_BROADCAST:
+			// Init
+			udpbd_init();
+			// Ack to broadcast
+			g_pkt.bd.magic  = UDPBD_HEADER_MAGIC;
+			g_pkt.bd.cmd    = UDPBD_CMD_INFO;
+			g_pkt.bd.cmdid  = g_cmdid;
+			g_pkt.bd.cmdpkt = 0;
+			g_pkt.bd.count  = 0;
+			g_pkt.bd.par1   = 0;
+			g_pkt.bd.par2   = 0;
+			udpbd_send(&g_pkt);
 			break;
 	};
 }
