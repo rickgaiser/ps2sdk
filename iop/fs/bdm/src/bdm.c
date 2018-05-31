@@ -93,8 +93,7 @@ void bdm_connect_fs(struct file_system* fs)
 	}
 
 	// New filesystem, try to mount it to the block devices
-	if (g_cb != NULL)
-		SetEventFlag(bdm_event, BDM_EVENT_MOUNT);
+	SetEventFlag(bdm_event, BDM_EVENT_MOUNT);
 }
 
 void bdm_disconnect_fs(struct file_system* fs)
