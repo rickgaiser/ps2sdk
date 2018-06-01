@@ -5,14 +5,13 @@
 #include "tamtypes.h"
 
 
-#define UDPBD_PORT          0xBDBD //The port on which to listen for incoming data
-#define UDPBD_HEADER_MAGIC  0xBDBDBDBD
-#define UDPBD_CMD_INFO      0x00
-#define UDPBD_CMD_READ      0x01
-#define UDPBD_CMD_WRITE     0x02
-#define UDPBD_CMD_BROADCAST 0xff
-
-#define UDPBD_MAX_DATA     1408  // 1408 bytes = max 11 x 128b blocks
+#define UDPBD_PORT            0xBDBD //The port on which to listen for incoming data
+#define UDPBD_HEADER_MAGIC    0xBDBDBDBD
+#define UDPBD_CMD_INFO        0x00
+#define UDPBD_CMD_READ        0x01
+#define UDPBD_CMD_WRITE       0x02
+#define UDPBD_MAX_DATA        1408 // 1408 bytes = max 11 x 128b blocks
+#define UDPBD_MAX_SECTOR_READ 128
 
 /* These automatically convert the address and port to network order.  */
 #define IP_ADDR(a, b, c, d)	(((d & 0xff) << 24) | ((c & 0xff) << 16) | \

@@ -9,7 +9,7 @@
 
 //#define M_PRINTF(format, args...) printf("UDPBD: " format, ## args)
 //#define M_DEBUG M_PRINTF
-#define M_DEBUG
+#define M_DEBUG(...)
 
 #define UDPBD_MAX_RETRIES 4
 static struct block_device g_udpbd;
@@ -68,42 +68,64 @@ static int udpbd_send(udpbd_pkt_t *udp_pkt)
 //
 // Block device interface
 //
-static int udpbd_read(struct block_device* bd, u32 sector, void* buffer, u16 count)
+static int _udpbd_read(struct block_device* bd, u32 sector, void* buffer, u16 count)
 {
 	u32 EFBits;
+
+	//M_DEBUG("%s: sector=%d, count=%d\n", __func__, sector, count);
+
+    g_cmdid++;
+    g_buffer = buffer;
+    g_read_size = count * 512;
+    g_read_cmdpkt = 1; // First reply packet should be cmdpkt==1
+
+    g_pkt.bd.magic  = UDPBD_HEADER_MAGIC;
+    g_pkt.bd.cmd    = UDPBD_CMD_READ;
+    g_pkt.bd.cmdid  = g_cmdid;
+    g_pkt.bd.cmdpkt = 0;
+    g_pkt.bd.count  = count;
+    g_pkt.bd.par1   = sector;
+    g_pkt.bd.par2   = 0;
+
+    udpbd_send(&g_pkt);
+
+    //wait for data...
+    WaitEventFlag(g_read_done, 2|1, WEF_OR|WEF_CLEAR, &EFBits);
+
+    g_buffer = NULL;
+    g_read_size = 0;
+    g_read_cmdpkt = 0;
+
+    if (EFBits & 1) { // done
+        return count;
+    }
+
+	return -EIO;
+}
+
+static int udpbd_read(struct block_device* bd, u32 sector, void* buffer, u16 count)
+{
 	int retries;
+	u16 count_left = count;
 
 	M_DEBUG("%s: sector=%d, count=%d\n", __func__, sector, count);
 
-	for (retries = 0; retries < UDPBD_MAX_RETRIES; retries++) {
-		g_cmdid++;
-		g_buffer = buffer;
-		g_read_size = count * 512;
-		g_read_cmdpkt = 1; // First reply packet should be cmdpkt==1
+	while (count_left > 0) {
+        u16 count_block = count_left > UDPBD_MAX_SECTOR_READ ? UDPBD_MAX_SECTOR_READ : count_left;
 
-		g_pkt.bd.magic  = UDPBD_HEADER_MAGIC;
-		g_pkt.bd.cmd    = UDPBD_CMD_READ;
-		g_pkt.bd.cmdid  = g_cmdid;
-		g_pkt.bd.cmdpkt = 0;
-		g_pkt.bd.count  = count;
-		g_pkt.bd.par1   = sector;
-		g_pkt.bd.par2   = 0;
+        for (retries = 0; retries < UDPBD_MAX_RETRIES; retries++) {
+            if (_udpbd_read(bd, sector, buffer, count_block) == count_block)
+                break;
+        }
 
-		udpbd_send(&g_pkt);
+        if (retries == UDPBD_MAX_RETRIES)
+            return -EIO;
 
-		//wait for data...
-		WaitEventFlag(g_read_done, 2|1, WEF_OR|WEF_CLEAR, &EFBits);
-
-		g_buffer = NULL;
-		g_read_size = 0;
-		g_read_cmdpkt = 0;
-
-		if (EFBits & 1) { // done
-			return count;
-		}
+        count_left -= count_block;
+        sector += count_block;
 	}
 
-	return -EIO;
+	return count;
 }
 
 static int udpbd_write(struct block_device* bd, u32 sector, const void* buffer, u16 count)
@@ -141,13 +163,22 @@ int udpbd_init(void)
 	if (g_read_done <= 0)
         g_read_done = CreateEventFlag(&EventFlagData);
 
+    g_udpbd.name  = "udp";
+    g_udpbd.devNr = 0;
+    g_udpbd.parNr = 0;
+    g_udpbd.sectorOffset = 0;
+    g_udpbd.priv  = NULL;
+    g_udpbd.read  = udpbd_read;
+    g_udpbd.write = udpbd_write;
+    g_udpbd.flush = udpbd_flush;
+
 	// Ethernet
-	g_pkt.eth_addr_dst[0] = 0x54;
-	g_pkt.eth_addr_dst[1] = 0x9f;
-	g_pkt.eth_addr_dst[2] = 0x35;
-	g_pkt.eth_addr_dst[3] = 0x1e;
-	g_pkt.eth_addr_dst[4] = 0x28;
-	g_pkt.eth_addr_dst[5] = 0xa6;
+	g_pkt.eth_addr_dst[0] = 0xff; //0x54;
+	g_pkt.eth_addr_dst[1] = 0xff; //0x9f;
+	g_pkt.eth_addr_dst[2] = 0xff; //0x35;
+	g_pkt.eth_addr_dst[3] = 0xff; //0x1e;
+	g_pkt.eth_addr_dst[4] = 0xff; //0x28;
+	g_pkt.eth_addr_dst[5] = 0xff; //0xa6;
 	g_pkt.eth_addr_src[0] = 0x00;
 	g_pkt.eth_addr_src[1] = 0x1d;
 	g_pkt.eth_addr_src[2] = 0x0d;
@@ -168,36 +199,26 @@ int udpbd_init(void)
 	g_pkt.ip_addr_src.addr[0] = 192;
 	g_pkt.ip_addr_src.addr[1] = 168;
 	g_pkt.ip_addr_src.addr[2] = 1;
-#define SLIM
-#ifdef SLIM
-	g_pkt.ip_addr_src.addr[3] = 46;
-#else
-	g_pkt.ip_addr_src.addr[3] = 95;
-#endif
-	g_pkt.ip_addr_dst.addr[0] = 192;
-	g_pkt.ip_addr_dst.addr[1] = 168;
-	g_pkt.ip_addr_dst.addr[2] = 1;
-	g_pkt.ip_addr_dst.addr[3] = 198;
+	g_pkt.ip_addr_src.addr[3] = 10;
+	g_pkt.ip_addr_dst.addr[0] = 255; //192;
+	g_pkt.ip_addr_dst.addr[1] = 255; //168;
+	g_pkt.ip_addr_dst.addr[2] = 255; //1;
+	g_pkt.ip_addr_dst.addr[3] = 255; //198;
 	// UDP
 	g_pkt.udp_port_src    = IP_PORT(UDPBD_PORT);
 	g_pkt.udp_port_dst    = IP_PORT(UDPBD_PORT);
 	//g_pkt.udp_len         = ;
 	//g_pkt.udp_csum        = ;
 
-	g_udpbd.name  = "udp";
-	g_udpbd.devNr = 0;
-	g_udpbd.parNr = 0;
-
-	g_udpbd.sectorSize   = 512;
-	g_udpbd.sectorOffset = 0;
-	g_udpbd.sectorCount  = 10*1024*1024*2; // Sector count (10GiB)
-
-	g_udpbd.priv  = NULL;
-	g_udpbd.read  = udpbd_read;
-	g_udpbd.write = udpbd_write;
-	g_udpbd.flush = udpbd_flush;
-
-	bdm_connect_bd(&g_udpbd);
+    // Broadcast request for block device information
+    g_pkt.bd.magic  = UDPBD_HEADER_MAGIC;
+    g_pkt.bd.cmd    = UDPBD_CMD_INFO;
+    g_pkt.bd.cmdid  = g_cmdid;
+    g_pkt.bd.cmdpkt = 0;
+    g_pkt.bd.count  = 0;
+    g_pkt.bd.par1   = 0;
+    g_pkt.bd.par2   = 0;
+    udpbd_send(&g_pkt);
 
 	return 0;
 }
@@ -210,12 +231,15 @@ void udpbd_rx(u16 pointer)
 	u32 * phdr = (u32 *)&hdr;
 
 	//phdr[0] = UDPBD_HEADER_MAGIC;
-	phdr[1] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
-	phdr[2] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
-	phdr[3] = SMAP_REG32(SMAP_R_RXFIFO_DATA);
+	phdr[1] = SMAP_REG32(SMAP_R_RXFIFO_DATA); // CMD
+	phdr[2] = SMAP_REG32(SMAP_R_RXFIFO_DATA); // PAR1
+	phdr[3] = SMAP_REG32(SMAP_R_RXFIFO_DATA); // PAR2
 
 	switch (hdr.cmd) {
 		case UDPBD_CMD_INFO:
+            g_udpbd.sectorSize  = hdr.par1;
+            g_udpbd.sectorCount = hdr.par2;
+            bdm_connect_bd(&g_udpbd);
 			break;
 		case UDPBD_CMD_READ:
 			if ((g_buffer != NULL) && (g_read_size >= hdr.par1) && (g_cmdid == hdr.cmdid)) {
@@ -253,19 +277,6 @@ void udpbd_rx(u16 pointer)
 			}
 			break;
 		case UDPBD_CMD_WRITE:
-			break;
-		case UDPBD_CMD_BROADCAST:
-			// Init
-			udpbd_init();
-			// Ack to broadcast
-			g_pkt.bd.magic  = UDPBD_HEADER_MAGIC;
-			g_pkt.bd.cmd    = UDPBD_CMD_INFO;
-			g_pkt.bd.cmdid  = g_cmdid;
-			g_pkt.bd.cmdpkt = 0;
-			g_pkt.bd.count  = 0;
-			g_pkt.bd.par1   = 0;
-			g_pkt.bd.par2   = 0;
-			udpbd_send(&g_pkt);
 			break;
 	};
 }

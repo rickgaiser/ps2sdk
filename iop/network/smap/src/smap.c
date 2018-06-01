@@ -427,6 +427,8 @@ static void IntrHandlerThread(struct SmapDriverData *SmapDrivPrivData){
 
 				NetManToggleNetIFLinkState(SmapDrivPrivData->NetIFID, NETMAN_NETIF_ETH_LINK_STATE_UP);
 
+				udpbd_init();
+
 				if(!SmapDrivPrivData->EnableLinkCheckTimer){
 					USec2SysClock(1000000, &SmapDrivPrivData->LinkCheckTimer);
 					SetAlarm(&SmapDrivPrivData->LinkCheckTimer, (void*)&LinkCheckTimerCB, SmapDrivPrivData);
@@ -637,8 +639,6 @@ int SMAPIoctl(unsigned int command, void *args, unsigned int args_len, void *out
 			result=SMAPGetLinkStatus();
 			break;
 		case NETMAN_NETIF_IOCTL_GET_TX_DROPPED_COUNT:
-			//udpbd_init();
-			//udpbd_test();
 			result=SmapDriverData.RuntimeStats.TxDroppedFrameCount;
 			break;
 		case NETMAN_NETIF_IOCTL_GET_RX_DROPPED_COUNT:
