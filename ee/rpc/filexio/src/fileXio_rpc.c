@@ -96,7 +96,7 @@ static int fileXioGetstatHelper(const char *path, struct stat *buf) {
         buf->st_uid = 0;
         buf->st_gid = 0;
         buf->st_rdev = 0;
-        buf->st_size = ((off_t)fiostat.hisize << 32) | (off_t)fiostat.size;
+        buf->st_size = /*((off_t)fiostat.hisize << 32) |*/ (off_t)fiostat.size;
         buf->st_atime = io_to_posix_time(fiostat.atime);
         buf->st_mtime = io_to_posix_time(fiostat.mtime);
         buf->st_ctime = io_to_posix_time(fiostat.ctime);
@@ -163,14 +163,12 @@ static void fileXioRewinddirHelper(DIR *dir)
 
 static int fileXioClosedirHelper(DIR *dir)
 {
-	int rv;
-
 	if(dir == NULL) {
 		// FIXME: set errno
 		return -1;
 	}
 
-	rv = fileXioDclose(dir->dd_fd); // Check return value?
+	fileXioDclose(dir->dd_fd); // Check return value?
 	free(dir->dd_buf);
 	free(dir);
 	return 0;
