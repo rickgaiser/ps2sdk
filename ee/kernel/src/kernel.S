@@ -735,6 +735,32 @@ SYSCALL(_InitTLB)
 SYSCALL(SetMemoryMode)
 #endif
 
+#ifdef F_GPfuncs
+	.text
+	.align	2
+.globl ChangeGP
+.ent ChangeGP
+ChangeGP:
+        move    $2,$gp
+	j	$31
+        move    $gp,$4
+.end ChangeGP
+
+.globl SetGP
+.ent SetGP
+SetGP:
+	j	$31
+        move    $gp,$4
+.end SetGP
+
+.globl GetGP
+.ent GetGP
+GetGP:
+	j	$31
+        move    $2,$gp
+.end GetGP
+#endif
+
 #ifdef F_SifWriteBackDCache
 
 	.globl	SifWriteBackDCache
