@@ -3,7 +3,7 @@ name: CI-Docker
 on:
   push:
     branches:
-      - master
+      - ee-toolchain-gcc10
   repository_dispatch:
     types: [run_build]
 
@@ -19,8 +19,8 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
         repository: ${{ env.GITHUB_REPOSITORY }}
-        tags: latest
-        build_args: BASE_DOCKER_IMAGE=${{ github.repository_owner }}/ps2toolchain:latest
+        tags: experimental
+        build_args: BASE_DOCKER_IMAGE=${{ github.repository_owner }}/ps2toolchain:experimental
     
     - name: Send Compile action
       run: |
