@@ -46,6 +46,8 @@ extern "C" {
 
 #else
 
+#include "sysclib.h"
+
 /** Uppercase letter */
 #define	_U		0x01
 /** Lowercase letter */
