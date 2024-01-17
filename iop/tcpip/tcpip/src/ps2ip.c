@@ -51,6 +51,9 @@ static int		iTimerDHCP=0;
 #endif	//defined(PS2IP_DHCP)
 #endif
 
+int errno = 0;
+err_t sys_mbox_trypost_fromisr(sys_mbox_t *mbox, void *msg) {return 0;}
+
 int
 ps2ip_getconfig(char* pszName,t_ip_info* pInfo)
 {

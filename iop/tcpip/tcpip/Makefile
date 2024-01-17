@@ -32,10 +32,10 @@ ifdef PS2IP_DNS
 IOP_CFLAGS += -DPS2IP_DNS
 endif
 
-IOP_INCS += -I$(LWIP)/src/include -I$(LWIP)/src/include/ipv4 -I$(PS2IP_BASE)/include
+IOP_INCS += -I$(LWIP)/src/include -I$(LWIP)/src/include/ipv4 -I$(PS2IP_BASE)/include -I$(PS2SDKSRC)/iop/kernel/include
 
 ps2api_OBJECTS = api_lib.o api_msg.o api_netbuf.o err.o sockets.o tcpip.o
-ps2api_IPV4 = icmp.o ip.o ip4.o ip4_addr.o ip4_frag.o inet_chksum.o
+ps2api_IPV4 = icmp.o ip.o ip4.o ip4_addr.o ip4_frag.o inet_chksum.o acd.o
 ps2ip_OBJECTS = sys.o lwip_init.o mem.o netif.o pbuf.o stats.o tcp_in.o tcp_out.o udp.o memp.o tcp.o ethernet.o etharp.o raw.o def.o timeouts.o $(ps2api_IPV4) $(ps2api_OBJECTS)
 
 ifdef PS2IP_DHCP
@@ -85,6 +85,9 @@ $(IOP_OBJS_DIR)icmp.o: $(LWIP)/src/core/ipv4/icmp.c
 	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
 
 $(IOP_OBJS_DIR)ip.o: $(LWIP)/src/core/ip.c
+	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
+
+$(IOP_OBJS_DIR)acd.o: $(LWIP)/src/core/ipv4/acd.c
 	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
 
 $(IOP_OBJS_DIR)ip4.o: $(LWIP)/src/core/ipv4/ip4.c
@@ -165,4 +168,3 @@ $(IOP_OBJS_DIR)udp.o: $(LWIP)/src/core/udp.c
 
 $(IOP_OBJS_DIR)sys_arch.o: $(PS2IP_BASE)/sys_arch.c
 	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
-
