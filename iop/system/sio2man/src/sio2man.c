@@ -40,8 +40,7 @@ struct sio2man_internal_data
 	int m_intr_sema;
 	int m_transfer_semaphore;
 	// Unofficial: backwards compatibility for libraries using 1.3 SDK
-	int m_sdk13x_curflag;
-	int m_sdk13x_totalflag;
+	int m_sdk13x_flag;
 	sio2_mtap_change_slot_cb_t m_mtap_change_slot_cb;
 	sio2_mtap_get_slot_max_cb_t m_mtap_get_slot_max_cb;
 	sio2_mtap_get_slot_max2_cb_t m_mtap_get_slot_max2_cb;
@@ -312,8 +311,7 @@ int _start(int ac, char **av)
 	if ( g_sio2man_data.m_inited )
 		return 1;
 	g_sio2man_data.m_inited = 1;
-	g_sio2man_data.m_sdk13x_curflag = 0;
-	g_sio2man_data.m_sdk13x_totalflag = 3;
+	g_sio2man_data.m_sdk13x_flag = 0;
 	// Unofficial: remove unneeded thread priority argument handler
 	// Unofficial: use setters instead of setting variable directly
 	sio2_mtap_change_slot_set(NULL);
@@ -411,7 +409,7 @@ int sio2_transfer(sio2_transfer_data_t *td)
 	sio2_set_ctrl_1();
 	sio2_wait_for_intr();
 	recv_td(td);
-	if ( g_sio2man_data.m_sdk13x_curflag )
+	if ( g_sio2man_data.m_sdk13x_flag )
 		sio2_transfer_reset();
 #ifdef SIO2LOG
 	log_flush(0);
@@ -428,24 +426,18 @@ void sio2_pad_transfer_init(void)
 #ifdef SIO2LOG
 	log_default(LOG_PAD_READY);
 #endif
-	g_sio2man_data.m_sdk13x_curflag = 0;
+	g_sio2man_data.m_sdk13x_flag = 0;
 }
 
 void sio2_pad_transfer_init_possiblysdk13x(void)
 {
 	sio2_pad_transfer_init();
-	g_sio2man_data.m_sdk13x_curflag |= g_sio2man_data.m_sdk13x_totalflag & 1;
-}
-
-void sio2_mc_transfer_init_possiblysdk13x(void)
-{
-	sio2_pad_transfer_init();
-	g_sio2man_data.m_sdk13x_curflag |= g_sio2man_data.m_sdk13x_totalflag & 2;
+	g_sio2man_data.m_sdk13x_flag = 1;
 }
 
 void sio2_transfer_reset(void)
 {
-	g_sio2man_data.m_sdk13x_curflag = 0;
+	g_sio2man_data.m_sdk13x_flag = 0;
 	SignalSema(g_sio2man_data.m_transfer_semaphore);
 #ifdef SIO2LOG
 	log_default(LOG_RESET);
@@ -499,7 +491,7 @@ void sio2_mtap_update_slots_set(sio2_mtap_update_slots_t cb)
 
 int sio2_mtap_change_slot(s32 *arg)
 {
-	g_sio2man_data.m_sdk13x_totalflag &= ~g_sio2man_data.m_sdk13x_curflag;
+	g_sio2man_data.m_sdk13x_flag = 0;
 	// Unofficial: unconditionally call callback
 	return g_sio2man_data.m_mtap_change_slot_cb(arg);
 }
