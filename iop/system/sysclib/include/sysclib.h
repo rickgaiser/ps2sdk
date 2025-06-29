@@ -96,10 +96,10 @@ extern char *strtok_r(char *s, const char *delim, char **lasts);
 #define memset __builtin_memset
 #endif
 #ifndef bcmp
-#define bcmp __builtin_bcmp
+//#define bcmp __builtin_bcmp
 #endif
 #ifndef bzero
-#define bzero __builtin_bzero
+//#define bzero __builtin_bzero
 #endif
 #ifndef sprintf
 #define sprintf __builtin_sprintf
@@ -135,7 +135,7 @@ extern char *strtok_r(char *s, const char *delim, char **lasts);
 #define strncmp __builtin_strncmp
 #endif
 #ifndef strncpy
-#define strncpy __builtin_strncpy
+//#define strncpy __builtin_strncpy
 #endif
 #ifndef strpbrk
 #define strpbrk __builtin_strpbrk

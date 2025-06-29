@@ -79,6 +79,7 @@ struct ioman_dev_listentry
 static int showdrvflag = 1;
 
 IOMANX_RETURN_VALUE_IMPL(0);
+IOMANX_RETURN_VALUE_IMPL_S64(0);
 
 static iomanX_iop_device_ops_t dev_tty_dev_operations = {
 	IOMANX_RETURN_VALUE(0), // init

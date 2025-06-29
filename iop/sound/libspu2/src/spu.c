@@ -600,7 +600,7 @@ static void _spu_FsetDelayR(int flag)
 	((vu32 *)0xBF801014)[256 * flag] = (((vu32 *)0xBF801014)[256 * flag] & ~0x2f000000) | 0x22000000;
 }
 
-void __attribute__((optimize("no-unroll-loops"))) _spu_Fw1ts(void)
+void _spu_Fw1ts(void)
 {
 	int i;
 	int v1;

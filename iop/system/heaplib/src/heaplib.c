@@ -18,13 +18,6 @@ IRX_ID("Heap_lib", 1, 1);
 #endif
 // Based on the module from SCE SDK 1.3.4.
 
-typedef struct heaplib_ll_
-{
-	struct heaplib_ll_ *next;
-	struct heaplib_ll_ *prev;
-	char payload[];
-} heaplib_ll_t;
-
 typedef struct heaplib_chunk_fragment_
 {
 	struct heaplib_chunk_fragment_ *next_fragment;
@@ -40,6 +33,13 @@ typedef struct heaplib_chunk_
 	heaplib_chunk_fragment_t *chunk_fragment_prev;
 	heaplib_chunk_fragment_t fragment;
 } heaplib_chunk_t;
+
+typedef struct heaplib_ll_
+{
+	struct heaplib_ll_ *next;
+	struct heaplib_ll_ *prev;
+	heaplib_chunk_t *payload;
+} heaplib_ll_t;
 
 typedef struct heaplib_heap_
 {
@@ -316,7 +316,7 @@ void *AllocHeapMemory(void *heap_, size_t nbytes)
 		return 0;
 	item = heap->l.next;
 	list_head = &heap->l;
-	for ( heap_item = (heaplib_chunk_t *)item->payload;; heap_item = (heaplib_chunk_t *)item->payload )
+	for ( heap_item = item->payload;; heap_item = item->payload )
 	{
 		void *result;
 
@@ -336,7 +336,7 @@ void *AllocHeapMemory(void *heap_, size_t nbytes)
 				{
 					BlockSize = QueryBlockSize(heap_new);
 					linked_list_add_after(heap->l.next, heap_new);
-					payload = (heaplib_chunk_t *)heap_new->payload;
+					payload = heap_new->payload;
 					HeapPrepare(payload, BlockSize - 8);
 					return heaplib_13_chunk_do_allocate(payload, nbytes);
 				}
@@ -362,8 +362,8 @@ int FreeHeapMemory(void *heap_, void *ptr)
 	if ( heap->heap_validation_key != (((u8 *)heap) + 1) )
 		return -4;
 	item = heap->l.next;
-	for ( chunk_item = (heaplib_chunk_t *)item->payload; heaplib_14_chunk_do_iterate(chunk_item, ptr);
-				chunk_item = (heaplib_chunk_t *)item->payload )
+	for ( chunk_item = item->payload; heaplib_14_chunk_do_iterate(chunk_item, ptr);
+				chunk_item = item->payload )
 	{
 		if ( item == list_head )
 			return -1;
@@ -394,7 +394,7 @@ int HeapTotalFreeSize(void *heap_)
 		return -4;
 	for ( chunk_item = heap->l.next;; chunk_item = chunk_item->next )
 	{
-		calc_size += HeapChunkSize((heaplib_chunk_t *)chunk_item->payload);
+		calc_size += HeapChunkSize(chunk_item->payload);
 		if ( chunk_item == list_head )
 			break;
 	}

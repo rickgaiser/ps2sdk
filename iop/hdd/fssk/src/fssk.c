@@ -715,6 +715,7 @@ static int FsskIoctl2(iomanX_iop_file_t *fd, int cmd, void *arg, unsigned int ar
 }
 
 IOMANX_RETURN_VALUE_IMPL(0);
+IOMANX_RETURN_VALUE_IMPL_S64(0);
 
 static iomanX_iop_device_ops_t FsskDeviceOps = {
     IOMANX_RETURN_VALUE(0), // init

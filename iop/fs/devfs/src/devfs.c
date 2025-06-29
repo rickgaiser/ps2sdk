@@ -72,7 +72,7 @@ typedef struct _ioman_data
 {
    HDEV hDev;
    /** Pointer to the main device, set to NULL if device closed */
-   devfs_device_t *dev;  
+   devfs_device_t *dev;
    int subdev;
    u32 mode;
    devfs_loc_t loc;
@@ -981,7 +981,8 @@ int devfs_getstat(iop_file_t *file, const char *name, iox_stat_t *stat)
 
 IOMANX_RETURN_VALUE_IMPL(0);
 IOMANX_RETURN_VALUE_IMPL(EPERM);
- 
+IOMANX_RETURN_VALUE_IMPL_S64(EPERM);
+
 static iop_device_ops_t devfs_ops = {
   IOMANX_RETURN_VALUE(0), // init
   IOMANX_RETURN_VALUE(0), // deinit

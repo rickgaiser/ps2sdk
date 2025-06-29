@@ -10,7 +10,7 @@
 
 #include "libspu2_internal.h"
 
-static void __attribute__((optimize("no-unroll-loops"))) _spu_wait_SpuRSetVoiceAttr(void)
+static void _spu_wait_SpuRSetVoiceAttr(void)
 {
 	int i;
 	int v1;

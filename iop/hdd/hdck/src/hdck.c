@@ -34,6 +34,7 @@ static u8 IOBuffer2[128 * 512];
 
 IOMANX_RETURN_VALUE_IMPL(0);
 IOMANX_RETURN_VALUE_IMPL(EPERM);
+IOMANX_RETURN_VALUE_IMPL_S64(EPERM);
 
 static iomanX_iop_device_ops_t HdckDeviceOps = {
     &HdckInit, // init

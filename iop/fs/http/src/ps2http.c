@@ -140,7 +140,7 @@ int readLine( int socket, char * buffer, int size )
 
 		if ( rc <= 0 ) return rc;
 
-		if ( (*ptr == '\n') ) break;
+		if ( *ptr == '\n' ) break;
 
 		// increment after check for cr.  Don't want to count the cr.
 		count++;
@@ -529,4 +529,3 @@ int _start( int argc, char *argv[])
 
 	return MODULE_RESIDENT_END;
 }
-

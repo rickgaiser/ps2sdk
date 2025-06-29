@@ -62,6 +62,7 @@ static int g_cdvdstm_retryerr_iop = 0;
 static int g_cdvdstm_retrycnt_iop = 0;
 
 IOMANX_RETURN_VALUE_IMPL(EIO);
+IOMANX_RETURN_VALUE_IMPL_S64(EIO);
 
 static iop_device_ops_t g_cdrom_stm_dev_ops = {
 	&cdrom_stm_init, // init,

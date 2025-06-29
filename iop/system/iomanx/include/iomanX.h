@@ -63,19 +63,19 @@ extern "C" {
 #define IOP_DT_FS	0x10
 #ifndef IOMAN_NO_EXTENDED
 /** Supports calls after chstat().  */
-#define IOP_DT_FSEXT	0x10000000	
+#define IOP_DT_FSEXT	0x10000000
 #endif
 
 /** File objects passed to driver operations.  */
 typedef struct _iomanX_iop_file {
 	/** File open mode.  */
-	int	mode;		
+	int	mode;
 	/** HW device unit number.  */
-	int	unit;		
+	int	unit;
 	/** Device driver.  */
 	struct _iomanX_iop_device *device;
 	/** The device driver can use this however it wants.  */
-	void	*privdata;	
+	void	*privdata;
 } iomanX_iop_file_t;
 
 typedef struct _iomanX_iop_device {
@@ -87,7 +87,8 @@ typedef struct _iomanX_iop_device {
 	struct _iomanX_iop_device_ops *ops;
 } iomanX_iop_device_t;
 #define IOMANX_RETURN_VALUE_IMPL(val) \
-	static inline int my_iomanx_retval_##val##_int(void) {return -val;} \
+	static inline int my_iomanx_retval_##val##_int(void) {return -val;}
+#define IOMANX_RETURN_VALUE_IMPL_S64(val) \
 	static inline signed long long my_iomanx_retval_##val##_s64(void) {return -val;}
 #define IOMANX_RETURN_VALUE(val) ((void*)&my_iomanx_retval_##val##_int)
 #define IOMANX_RETURN_VALUE_S64(val) ((void*)&my_iomanx_retval_##val##_s64)

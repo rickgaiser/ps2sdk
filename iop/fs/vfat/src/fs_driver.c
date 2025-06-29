@@ -932,7 +932,7 @@ static int fs_ioctl2(iop_file_t *fd, int cmd, void *data, unsigned int datalen, 
 
     if (fd == NULL)
         return -ENXIO;
-    
+
     struct fs_dirent *dirent = (struct fs_dirent *)fd->privdata; // Remember to re-cast this to the right structure (either fs_rec or fs_dir)!
 
     M_DEBUG("%s\n", __func__);
@@ -997,6 +997,7 @@ static int fs_ioctl2(iop_file_t *fd, int cmd, void *data, unsigned int datalen, 
 
 IOMANX_RETURN_VALUE_IMPL(0);
 IOMANX_RETURN_VALUE_IMPL(EIO);
+IOMANX_RETURN_VALUE_IMPL_S64(EIO);
 
 static iop_device_ops_t fs_functarray = {
     &fs_init, // init

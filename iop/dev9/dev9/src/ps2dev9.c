@@ -147,6 +147,7 @@ static int dev9x_devctl(iop_file_t *f, const char *name, int cmd, void *args, un
 }
 
 IOMANX_RETURN_VALUE_IMPL(0);
+IOMANX_RETURN_VALUE_IMPL_S64(0);
 
 static iop_device_ops_t dev9x_ops =
     {

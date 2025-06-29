@@ -41,7 +41,7 @@ typedef volatile u128 vu128 __attribute__((mode(TI)));
 #endif
 
 #ifdef _IOP
-typedef unsigned long u32;
+typedef unsigned int u32;
 typedef unsigned long long u64;
 
 typedef volatile u32 vu32;
@@ -69,7 +69,7 @@ typedef volatile s128 vs128 __attribute__((mode(TI)));
 #endif
 
 #ifdef _IOP
-typedef signed long s32;
+typedef signed int s32;
 typedef signed long long s64;
 
 typedef volatile s32 vs32;

@@ -68,7 +68,7 @@ enum SCECdvdMModeMediaType {
 
 enum SCECdvdErrorCode {
     /** Can't get error code */
-    SCECdErFAIL = -1,
+    SCECdErFAIL = -1, // 0xFF
     /** No Error */
     SCECdErNO = 0x00,
     /** Aborted */
@@ -101,9 +101,9 @@ enum SCECdvdErrorCode {
     SCECdErSFRMTNG = 0x38,
 
     /** Error setting command */
-    SCECdErREADCF = 0xFD,
+    SCECdErREADCF = -3, // 0xFD
     /** Error setting command */
-    SCECdErREADCFR
+    SCECdErREADCFR = -2 // 0xFE
 };
 
 enum SCECdvdMediaType {

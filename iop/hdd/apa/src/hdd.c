@@ -39,6 +39,7 @@ IRX_ID("hdd_driver", APA_MODVER_MAJOR, APA_MODVER_MINOR);
 #endif
 
 IOMANX_RETURN_VALUE_IMPL(EPERM);
+IOMANX_RETURN_VALUE_IMPL_S64(EPERM);
 
 static iomanX_iop_device_ops_t hddOps={
 	&hddInit, // init

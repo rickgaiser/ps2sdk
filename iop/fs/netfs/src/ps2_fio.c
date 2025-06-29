@@ -158,10 +158,10 @@ static inline int convmode_to_iomanx(int stat)
 /** changes mode from iomanx to ioman format
  * @ingroup ps2netfs
  */
-static inline int convmode_from_iomanx(int stat)
-{
-  return stat;
-}
+//static inline int convmode_from_iomanx(int stat)
+//{
+//  return stat;
+//}
 
 /** Shortcut to close the socket and cleanup.
  * @ingroup ps2netfs
@@ -2110,5 +2110,3 @@ int ps2fs_Destroy(void)
   DeleteSema(ps2netfs_sema);
   return 0;
 }
-
-

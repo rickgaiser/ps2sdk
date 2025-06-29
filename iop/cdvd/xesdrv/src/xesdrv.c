@@ -219,6 +219,7 @@ struct DevctlCmdTbl_t
 };
 
 IOMANX_RETURN_VALUE_IMPL(ENOTSUP);
+IOMANX_RETURN_VALUE_IMPL_S64(ENOTSUP);
 
 static iomanX_iop_device_ops_t DvrFuncTbl = {
 	&esdrv_df_init, // init

@@ -55,7 +55,7 @@ IOP_LDFLAGS := -nostdlib -dc -r $(IOP_LDFLAGS)
 #   Without it, the import and export tables can be broken apart by GCC's optimizations.
 ifneq ($(IOP_CC_VERSION),3.2.2)
 ifneq ($(IOP_CC_VERSION),3.2.3)
-IOP_CFLAGS += -msoft-float -mno-explicit-relocs
+IOP_CFLAGS += -msoft-float
 IOP_IETABLE_CFLAGS := -fno-toplevel-reorder
 endif
 endif
@@ -87,7 +87,7 @@ IOP_BIN_STRIPPED_ELF := $(IOP_BIN:.irx=.notiopmod.stripped.elf)
 # Externally defined variables: IOP_BIN, IOP_OBJS, IOP_LIB
 
 # These macros can be used to simplify certain build rules.
-IOP_C_COMPILE = $(IOP_CC) $(IOP_CFLAGS)
+IOP_C_COMPILE = $(IOP_CC) $(IOP_CFLAGS) -mno-explicit-relocs
 
 # Command for ensuring the output directory for the rule exists.
 DIR_GUARD = @$(MKDIR) -p $(@D)
@@ -96,7 +96,7 @@ MAKE_CURPID := $(shell printf '%s' $$PPID)
 
 $(IOP_OBJS_DIR)%.o: $(IOP_SRC_DIR)%.c
 	$(DIR_GUARD)
-	$(IOP_C_COMPILE) -c $< -o $@
+	clang --target=mipsel-none-elf -mcpu=mips1 -mno-abicalls -fno-builtin $(IOP_CFLAGS) -c $< -o $@
 
 $(IOP_OBJS_DIR)%.o: $(IOP_SRC_DIR)%.S
 	$(DIR_GUARD)

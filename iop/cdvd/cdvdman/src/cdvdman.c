@@ -212,6 +212,7 @@ static unsigned int g_cdvdman_numbytes_offset = 0;
 static int g_cdvdman_strmerr = 0;
 
 IOMANX_RETURN_VALUE_IMPL(EIO);
+IOMANX_RETURN_VALUE_IMPL_S64(EIO);
 
 static iop_device_ops_t g_cdvdman_cddev_ops = {
 	&cdrom_init, // init,

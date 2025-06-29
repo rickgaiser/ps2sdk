@@ -725,6 +725,7 @@ static int HdskDevctl(iomanX_iop_file_t *fd, const char *name, int cmd, void *ar
 
 IOMANX_RETURN_VALUE_IMPL(0);
 IOMANX_RETURN_VALUE_IMPL(EPERM);
+IOMANX_RETURN_VALUE_IMPL_S64(EPERM);
 
 static iomanX_iop_device_ops_t HdskDeviceOps = {
     &HdskInit, // init

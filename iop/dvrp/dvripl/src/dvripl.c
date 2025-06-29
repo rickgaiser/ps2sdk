@@ -38,6 +38,7 @@ extern int iplioctl2_update(iomanX_iop_file_t *a1, int cmd, void *arg);
 extern void dvr_ready(int a1, void *a2);
 
 IOMANX_RETURN_VALUE_IMPL(EUNSUP);
+IOMANX_RETURN_VALUE_IMPL_S64(EUNSUP);
 
 static iomanX_iop_device_ops_t DvrFuncTbl =
     {

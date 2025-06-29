@@ -52,13 +52,13 @@ extern int format(const char *dev);
 /** File objects passed to driver operations.  */
 typedef struct _iop_file {
 	/** File open mode.  */
-	int	mode;		
+	int	mode;
 	/** HW device unit number.  */
-	int	unit;		
+	int	unit;
 	/** Device driver.  */
-	struct _iop_device *device; 
+	struct _iop_device *device;
 	/** The device driver can use this however it wants.  */
-	void	*privdata;	
+	void	*privdata;
 } iop_file_t;
 
 typedef struct _iop_device {
@@ -71,8 +71,9 @@ typedef struct _iop_device {
 } iop_device_t;
 
 #define IOMAN_RETURN_VALUE_IMPL(val) \
-	static inline int my_ioman_retval_##val##_int(void) {return -val;} \
-	static inline signed long long my_ioman_retval_##val##_s64(void) {return -val;}	
+	static inline int my_ioman_retval_##val##_int(void) {return -val;}
+#define IOMAN_RETURN_VALUE_IMPL_S64(val) \
+	static inline signed long long my_ioman_retval_##val##_s64(void) {return -val;}
 #define IOMAN_RETURN_VALUE(val) ((void*)&my_ioman_retval_##val##_int)
 #define IOMAN_RETURN_VALUE_S64(val) ((void*)&my_ioman_retval_##val##_s64)
 
