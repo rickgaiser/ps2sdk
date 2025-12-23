@@ -1,6 +1,9 @@
 #!/bin/bash
 # download_depdencies.sh by Francisco Javier Trujillo Mata (fjtrujy@gmail.com)
 
+# Downloading dependencies is handled by 'repo' in ps2max environment
+exit 0
+
 ## Protect reentrancy of this script if possible
 if [ "x$1" != "xlocked" ]; then
   if command -v flock > /dev/null; then

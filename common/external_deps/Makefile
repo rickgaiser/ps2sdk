@@ -8,9 +8,9 @@ all:
 clean:
 	@$(PRINTF) 'Cleaning PS2SDK dependencies.\n'
 	@$(PRINTF) 'Cleaning lwip.\n'
-	rm -rf $(LWIP) $(LWIP)_inprogress
+	rm -rf $(LWIP)_inprogress
 	@$(PRINTF) 'Cleaning fatfs.\n'
-	rm -rf $(FATFS) $(FATFS)_inprogress
+	rm -rf $(FATFS)_inprogress
 
 release:
 	@cd .
