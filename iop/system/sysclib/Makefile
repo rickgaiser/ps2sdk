@@ -101,7 +101,7 @@ IOP_OBJS += musl/string/strncpy.o
 endif
 
 ifneq (x$(USE_FULL_PRINTF),x0)
-IOP_LIBS += -lgcc
+IOP_OBJS += libgcc_udivdi3.o
 else
 IOP_CFLAGS += -DPRINTF_SUPPORT_DECIMAL_SPECIFIERS=0 -DPRINTF_SUPPORT_EXPONENTIAL_SPECIFIERS=0 -DPRINTF_SUPPORT_LONG_LONG=0
 endif
@@ -110,3 +110,9 @@ include $(PS2SDKSRC)/Defs.make
 include $(PS2SDKSRC)/iop/Rules.bin.make
 include $(PS2SDKSRC)/iop/Rules.make
 include $(PS2SDKSRC)/iop/Rules.release
+
+ifneq (x$(USE_FULL_PRINTF),x0)
+$(IOP_OBJS_DIR)libgcc_udivdi3.o: $(PS2SDKSRC)/iop/kernel/src/libgcc_udivdi3.c
+	$(DIR_GUARD)
+	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
+endif

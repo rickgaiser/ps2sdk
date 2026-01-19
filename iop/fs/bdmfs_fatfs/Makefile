@@ -33,11 +33,9 @@ IOP_IMPORT_INCS += \
 
 IOP_INCS += -I$(FATFS)/source/include
 
-IOP_LIBS += -lgcc
-
 FATFS_OBJS = diskio.o ff.o ffsystem.o ffunicode.o
 
-IOP_OBJS = main.o imports.o fs_driver.o $(FATFS_OBJS)
+IOP_OBJS = libgcc_udivdi3.o main.o imports.o fs_driver.o $(FATFS_OBJS)
 
 include $(PS2SDKSRC)/Defs.make
 include $(PS2SDKSRC)/iop/Rules.bin.make
@@ -47,9 +45,10 @@ include $(PS2SDKSRC)/iop/Rules.release
 $(FATFS):
 	$(MAKEREC) $(PS2SDKSRC)/common/external_deps all
 
-vpath %.c $(FATFS)/source/
+vpath %.c $(FATFS)/source/ $(PS2SDKSRC)/iop/kernel/src/
 
 $(IOP_OBJS_DIR)%.o: %.c
+	$(DIR_GUARD)
 	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
 
 .NOTPARALLEL:: \

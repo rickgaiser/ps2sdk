@@ -29,10 +29,8 @@ IOP_IMPORT_INCS += \
 
 IOP_INCS += -I$(LIBPFS_PATH)include
 
-IOP_LIBS += -lgcc
-
 PFS_OBJS = bitmap.o inode.o journal.o misc.o super.o cache.o block.o
-IOP_OBJS = fsck.o misc_fsck.o bitmap_fsck.o imports.o $(PFS_OBJS)
+IOP_OBJS = libgcc_udivdi3.o fsck.o misc_fsck.o bitmap_fsck.o imports.o $(PFS_OBJS)
 
 include $(PS2SDKSRC)/Defs.make
 include $(PS2SDKSRC)/iop/Rules.bin.make
@@ -40,4 +38,9 @@ include $(PS2SDKSRC)/iop/Rules.make
 include $(PS2SDKSRC)/iop/Rules.release
 
 $(IOP_OBJS_DIR)%.o: $(LIBPFS_SRC_DIR)%.c
+	$(DIR_GUARD)
+	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
+
+$(IOP_OBJS_DIR)libgcc_udivdi3.o: $(PS2SDKSRC)/iop/kernel/src/libgcc_udivdi3.c
+	$(DIR_GUARD)
 	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@

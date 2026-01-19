@@ -23,11 +23,13 @@ IOP_IMPORT_INCS += \
 	system/sysmem \
 	system/threadman
 
-IOP_LIBS += -lgcc
-
-IOP_OBJS = sbp2_driver.o imports.o main.o scsi.o
+IOP_OBJS = libgcc_udivdi3.o sbp2_driver.o imports.o main.o scsi.o
 
 include $(PS2SDKSRC)/Defs.make
 include $(PS2SDKSRC)/iop/Rules.bin.make
 include $(PS2SDKSRC)/iop/Rules.make
 include $(PS2SDKSRC)/iop/Rules.release
+
+$(IOP_OBJS_DIR)libgcc_udivdi3.o: $(PS2SDKSRC)/iop/kernel/src/libgcc_udivdi3.c
+	$(DIR_GUARD)
+	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@

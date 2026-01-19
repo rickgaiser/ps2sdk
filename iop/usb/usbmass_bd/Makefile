@@ -16,11 +16,13 @@ IOP_IMPORT_INCS += \
 	system/threadman \
 	usb/usbd
 
-IOP_LIBS += -lgcc
-
-IOP_OBJS = main.o usb_mass.o scsi.o imports.o
+IOP_OBJS = libgcc_udivdi3.o main.o usb_mass.o scsi.o imports.o
 
 include $(PS2SDKSRC)/Defs.make
 include $(PS2SDKSRC)/iop/Rules.bin.make
 include $(PS2SDKSRC)/iop/Rules.make
 include $(PS2SDKSRC)/iop/Rules.release
+
+$(IOP_OBJS_DIR)libgcc_udivdi3.o: $(PS2SDKSRC)/iop/kernel/src/libgcc_udivdi3.c
+	$(DIR_GUARD)
+	$(IOP_CC) $(IOP_CFLAGS) -c $< -o $@
