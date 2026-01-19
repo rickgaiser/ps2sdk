@@ -11,6 +11,13 @@
 #ifndef _LIBSPU2_INTERNAL_H
 #define _LIBSPU2_INTERNAL_H
 
+/* GCC's optimize attribute is not supported by Clang */
+#if defined(__GNUC__) && !defined(__clang__)
+#define SPU2_NO_UNROLL __attribute__((optimize("no-unroll-loops")))
+#else
+#define SPU2_NO_UNROLL
+#endif
+
 #include <intrman.h>
 #include <loadcore.h>
 #include <stdio.h>

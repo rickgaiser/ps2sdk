@@ -10,7 +10,7 @@
 
 #include "libspu2_internal.h"
 
-static void __attribute__((optimize("no-unroll-loops"))) _spu_wait_SpuSetVoiceSR(void)
+static void SPU2_NO_UNROLL _spu_wait_SpuSetVoiceSR(void)
 {
 	int i;
 	int v1;
@@ -34,7 +34,7 @@ void SpuSetVoiceSR(int v_num, u16 sr)
 
 // libspu2/s_svrro
 
-static void __attribute__((optimize("no-unroll-loops"))) _spu_wait_SpuSetVoiceRR(void)
+static void SPU2_NO_UNROLL _spu_wait_SpuSetVoiceRR(void)
 {
 	int i;
 	int v1;

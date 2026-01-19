@@ -27,7 +27,7 @@ u16 _svm_orev1;
 u16 _svm_onos2;
 u16 _svm_onos1;
 
-void __attribute__((optimize("no-unroll-loops"))) wait1fsa(void)
+void SPU2_NO_UNROLL wait1fsa(void)
 {
 	int i;
 	int curdum;
