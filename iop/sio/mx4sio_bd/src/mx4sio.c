@@ -663,8 +663,10 @@ static void sd_detect_thread(void *arg)
 
 /* Maximus32's C r3000 optimized byte reversal */
 /* 58-59uS avg on DECKARD */
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC push_options
 #pragma GCC optimize("-O3")
+#endif
 inline void reverse_buffer(uint32_t *buffer, uint32_t count)
 {
     const uint32_t mask0F = 0x0F0F0F0F;
@@ -685,7 +687,9 @@ inline void reverse_buffer(uint32_t *buffer, uint32_t count)
         buffer[i] = n;
     }
 }
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC pop_options
+#endif
 
 /* LUT for single byte reversal */
 const uint8_t reverse_byte_LUT8[256] = {

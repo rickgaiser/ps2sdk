@@ -6,6 +6,16 @@
 # Licenced under Academic Free License version 2.0
 # Review ps2sdk README & LICENSE files for further details.
 
+# sysclib-full requires soft-float runtime (libgcc), skip for LLVM
+ifdef IOP_USE_LLVM
+all:
+	@echo "Skipping sysclib-full for LLVM (requires soft-float runtime)"
+clean:
+	@true
+release:
+	@true
+else
+
 IOP_BIN_ALTNAMES =
 
 IOP_SRC_DIR = $(PS2SDKSRC)/iop/system/sysclib/src/
@@ -16,3 +26,5 @@ USE_SIZE_OPTIMIZED ?= 0
 USE_FULL_PRINTF ?= 1
 
 include $(PS2SDKSRC)/iop/system/sysclib/Makefile
+
+endif

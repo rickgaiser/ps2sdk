@@ -780,7 +780,6 @@ int sprintf (char *str, const char *format, ...)
 /* This structure is used to store state information about the
 ** write in progress
 */
-__attribute__((weak))
 struct sgMprintf {
   char *zBase;     /* A base allocation */
   char *zText;     /* The string collected so far */

@@ -41,6 +41,10 @@ typedef struct heaplib_chunk_
 	heaplib_chunk_fragment_t fragment;
 } heaplib_chunk_t;
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-variable-sized-type-not-at-end"
+#endif
 typedef struct heaplib_heap_
 {
 	void *heap_validation_key;
@@ -48,6 +52,9 @@ typedef struct heaplib_heap_
 	heaplib_ll_t l;
 	heaplib_chunk_t mem_chunk;
 } heaplib_heap_t;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 int _start(int ac, char **av)
 {
