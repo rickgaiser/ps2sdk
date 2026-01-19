@@ -1,3 +1,4 @@
+#define SYSCLIB_DISABLE_BUILTINS
 #include <sysclib.h>
 
 int bcmp(const void *s1, const void *s2, size_t n)

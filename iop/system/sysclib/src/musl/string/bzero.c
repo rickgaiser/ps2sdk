@@ -1,3 +1,4 @@
+#define SYSCLIB_DISABLE_BUILTINS
 #include <sysclib.h>
 
 void bzero(void *s, size_t n)

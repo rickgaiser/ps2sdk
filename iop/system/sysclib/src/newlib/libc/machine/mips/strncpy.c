@@ -15,6 +15,7 @@
  * the new terms are clearly indicated on the first page of each file where
  * they apply.  */
 
+#define SYSCLIB_DISABLE_BUILTINS
 #include <sysclib.h>
 #include <stddef.h>
 #include <stdint.h>

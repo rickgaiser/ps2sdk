@@ -1,3 +1,4 @@
+#define SYSCLIB_DISABLE_BUILTINS
 #include <sysclib.h>
 
 void bcopy(const void *s1, void *s2, size_t n)

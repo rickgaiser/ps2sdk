@@ -1,3 +1,4 @@
+#define SYSCLIB_DISABLE_BUILTINS
 #include <sysclib.h>
 #include <stdint.h>
 #include <limits.h>
