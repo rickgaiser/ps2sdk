@@ -158,6 +158,7 @@ static inline int convmode_to_iomanx(int stat)
 /** changes mode from iomanx to ioman format
  * @ingroup ps2netfs
  */
+__attribute__((unused))
 static inline int convmode_from_iomanx(int stat)
 {
   return stat;

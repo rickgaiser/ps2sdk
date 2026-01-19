@@ -87,8 +87,8 @@ typedef struct _iomanX_iop_device {
 	struct _iomanX_iop_device_ops *ops;
 } iomanX_iop_device_t;
 #define IOMANX_RETURN_VALUE_IMPL(val) \
-	static inline int my_iomanx_retval_##val##_int(void) {return -val;} \
-	static inline signed long long my_iomanx_retval_##val##_s64(void) {return -val;}
+	__attribute__((unused)) static inline int my_iomanx_retval_##val##_int(void) {return -val;} \
+	__attribute__((unused)) static inline signed long long my_iomanx_retval_##val##_s64(void) {return -val;}
 #define IOMANX_RETURN_VALUE(val) ((void*)&my_iomanx_retval_##val##_int)
 #define IOMANX_RETURN_VALUE_S64(val) ((void*)&my_iomanx_retval_##val##_s64)
 
