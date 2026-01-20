@@ -6,19 +6,12 @@
 # Licenced under Academic Free License version 2.0
 # Review ps2sdk README & LICENSE files for further details.
 
-IOP_CC_VERSION := $(shell $(IOP_CC) -dumpversion)
+# Comma definition for use in $(addprefix)
+comma := ,
 
 IOP_OBJS_DIR ?= obj/
 IOP_SRC_DIR ?= src/
 IOP_INC_DIR ?= include/
-
-ifeq ($(IOP_CC_VERSION),3.2.2)
-ASFLAGS_TARGET = -march=r3000
-endif
-
-ifeq ($(IOP_CC_VERSION),3.2.3)
-ASFLAGS_TARGET = -march=r3000
-endif
 
 # include dir
 IOP_INCS := $(IOP_INCS) -I$(IOP_SRC_DIR) -I$(IOP_SRC_DIR)include -I$(IOP_INC_DIR) -I$(PS2SDKSRC)/iop/kernel/include -I$(PS2SDKSRC)/common/include
@@ -32,6 +25,63 @@ IOP_OPTFLAGS ?= -Os
 
 # Warning compiler flags
 IOP_WARNFLAGS ?= -Wall -Werror
+
+ifeq ($(IOP_USE_LLVM),1)
+# =====================
+# LLVM/Clang settings
+# =====================
+
+# Target flags for IOP (MIPS R3000 - 32-bit little endian)
+# -mabi=32: Use O32 ABI (standard 32-bit MIPS ABI)
+# -mno-abicalls: Match GCC's default non-PIC code generation
+IOP_TARGET_FLAGS := --target=mipsel-none-elf -march=mips1 -mcpu=mips1 -mabi=32 -mno-abicalls
+
+# Debug information flags (LLVM compatible)
+IOP_DBGINFOFLAGS ?= -gdwarf-4
+
+# C compiler flags for LLVM/Clang
+# -fno-builtin prevents built-in functions from being included
+# -msoft-float ensures software floating point (IOP has no FPU)
+# -G0 disables small data section optimization
+# -mno-explicit-relocs ensures paired HI16/LO16 relocations (required for IRX1 format)
+# -mllvm --mno-check-zero-division disables trap instructions for division by zero
+#   (required because MIPS1 doesn't have trap instructions)
+# -Qunused-arguments silences warnings about unused arguments when used with linker
+# -U__mips -D__mips=1 fixes LLVM incorrectly setting __mips=32 for MIPS-I
+IOP_CFLAGS := $(IOP_TARGET_FLAGS) -D_IOP -U__mips -D__mips=1 -ffreestanding -fno-builtin -fno-builtin-memset -fno-builtin-memcpy -fno-builtin-memmove -msoft-float -mno-explicit-relocs -G0 -fomit-frame-pointer -mllvm --mno-check-zero-division -Qunused-arguments $(IOP_OPTFLAGS) $(IOP_WARNFLAGS) $(IOP_DBGINFOFLAGS) $(IOP_INCS) $(IOP_CFLAGS)
+ifeq ($(DEBUG),1)
+IOP_CFLAGS += -DDEBUG
+endif
+
+# Import/export table flags for LLVM
+IOP_IETABLE_CFLAGS :=
+
+# Linker flags for LLVM/Clang with LLD
+# -nostdlib: don't link standard libraries
+# -Wl,-r: create relocatable output
+# -Wl,--no-gc-sections: keep all sections
+IOP_LDFLAGS := -nostdlib -fuse-ld=lld -Wl,-r -Wl,--no-gc-sections $(IOP_LDFLAGS)
+
+# Assembler flags for LLVM (using clang as assembler)
+IOP_ASFLAGS := $(IOP_TARGET_FLAGS) -msoft-float $(IOP_ASFLAGS)
+
+# Default link file for LLVM (LLD-compatible)
+IOP_LINKFILE_DEFAULT := $(PS2SDKSRC)/iop/startup/src/linkfile.lld
+
+else
+# =====================
+# GCC settings (default)
+# =====================
+
+IOP_CC_VERSION := $(shell $(IOP_CC) -dumpversion)
+
+ifeq ($(IOP_CC_VERSION),3.2.2)
+ASFLAGS_TARGET = -march=r3000
+endif
+
+ifeq ($(IOP_CC_VERSION),3.2.3)
+ASFLAGS_TARGET = -march=r3000
+endif
 
 # Debug information flags
 IOP_DBGINFOFLAGS ?= -gdwarf-2 -gz
@@ -73,9 +123,15 @@ endif
 # Assembler flags
 IOP_ASFLAGS := $(ASFLAGS_TARGET) -EL -G0 $(IOP_ASFLAGS)
 
+endif
+
 # Default link file
 ifeq ($(IOP_LINKFILE),)
+ifeq ($(IOP_USE_LLVM),1)
+IOP_LINKFILE := $(PS2SDKSRC)/iop/startup/src/linkfile.lld
+else
 IOP_LINKFILE := $(PS2SDKSRC)/iop/startup/src/linkfile
+endif
 endif
 
 IOP_OBJS := $(IOP_OBJS:%=$(IOP_OBJS_DIR)%)
@@ -102,9 +158,17 @@ $(IOP_OBJS_DIR)%.o: $(IOP_SRC_DIR)%.S
 	$(DIR_GUARD)
 	$(IOP_C_COMPILE) -c $< -o $@
 
+ifeq ($(IOP_USE_LLVM),1)
+# For LLVM, use clang as assembler (requires -c flag)
+$(IOP_OBJS_DIR)%.o: $(IOP_SRC_DIR)%.s
+	$(DIR_GUARD)
+	$(IOP_AS) $(IOP_ASFLAGS) -c $< -o $@
+else
+# For GCC, use binutils as (no -c flag needed)
 $(IOP_OBJS_DIR)%.o: $(IOP_SRC_DIR)%.s
 	$(DIR_GUARD)
 	$(IOP_AS) $(IOP_ASFLAGS) $< -o $@
+endif
 
 .INTERMEDIATE:: $(IOP_LIB)_tmp$(MAKE_CURPID) $(IOP_OBJS_DIR)build-imports.c $(IOP_OBJS_DIR)build-exports.c
 
@@ -137,14 +201,30 @@ $(IOP_OBJS_DIR)exports.o: $(IOP_OBJS_DIR)build-exports.c
 	$(DIR_GUARD)
 	$(IOP_C_COMPILE) $(IOP_IETABLE_CFLAGS) -c $< -o $@
 
+ifeq ($(IOP_USE_LLVM),1)
+# For LLVM, use clang as linker driver with lld
+$(IOP_BIN_ELF): $(IOP_OBJS) $(IOP_LIB_ARCHIVES) $(IOP_ADDITIONAL_DEPS)
+	$(DIR_GUARD)
+	$(IOP_C_COMPILE) -Wl,-T,$(IOP_LINKFILE) $(IOP_OPTFLAGS) -o $@ $(IOP_OBJS) $(IOP_LDFLAGS) $(IOP_LIB_ARCHIVES) $(IOP_LIBS)
+else
+# For GCC, use gcc as linker driver
 $(IOP_BIN_ELF): $(IOP_OBJS) $(IOP_LIB_ARCHIVES) $(IOP_ADDITIONAL_DEPS)
 	$(DIR_GUARD)
 	$(IOP_C_COMPILE) -T$(IOP_LINKFILE) $(IOP_OPTFLAGS) -o $@ $(IOP_OBJS) $(IOP_LDFLAGS) $(IOP_LIB_ARCHIVES) $(IOP_LIBS)
+endif
 
+ifeq ($(IOP_USE_LLVM),1)
+# For LLVM, also remove LLVM-specific sections
+$(IOP_BIN_STRIPPED_ELF): $(IOP_BIN_ELF)
+	$(DIR_GUARD)
+	$(IOP_STRIP) --strip-unneeded --remove-section=.pdr --remove-section=.comment --remove-section=.mdebug.abi32 --remove-section=.gnu.attributes --remove-section=.llvm_addrsig --remove-section=.note.GNU-stack -o $@ $<
+else
 $(IOP_BIN_STRIPPED_ELF): $(IOP_BIN_ELF)
 	$(DIR_GUARD)
 	$(IOP_STRIP) --strip-unneeded --remove-section=.pdr --remove-section=.comment --remove-section=.mdebug.abi32 --remove-section=.gnu.attributes -o $@ $<
+endif
 
+# Use IRX1 format for both GCC and LLVM (IRX2 not supported by PS2 loadcore)
 $(IOP_BIN): $(IOP_BIN_STRIPPED_ELF) $(PS2SDKSRC)/tools/srxfixup/bin/srxfixup
 	$(PS2SDKSRC)/tools/srxfixup/bin/srxfixup --irx1 -o $@ $<
 

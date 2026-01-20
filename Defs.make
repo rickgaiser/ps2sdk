@@ -30,6 +30,22 @@ EE_PKG_CONFIG ?= $(EE_TOOL_PREFIX)pkg-config
 # Defintions for the IOP toolchain.
 #
 
+# Set IOP_USE_LLVM=1 to use LLVM/Clang instead of GCC
+IOP_USE_LLVM ?= 0
+
+ifeq ($(IOP_USE_LLVM),1)
+# LLVM/Clang toolchain for IOP
+IOP_LLVM_PREFIX ?= $(PS2DEV)/llvm/bin/
+IOP_CC ?= $(IOP_LLVM_PREFIX)clang
+IOP_AS ?= $(IOP_LLVM_PREFIX)clang
+IOP_LD ?= $(IOP_LLVM_PREFIX)ld.lld
+IOP_AR ?= $(IOP_LLVM_PREFIX)llvm-ar
+IOP_OBJCOPY ?= $(IOP_LLVM_PREFIX)llvm-objcopy
+IOP_STRIP ?= $(IOP_LLVM_PREFIX)llvm-strip
+IOP_ADDR2LINE ?= $(IOP_LLVM_PREFIX)llvm-addr2line
+IOP_RANLIB ?= $(IOP_LLVM_PREFIX)llvm-ranlib
+else
+# GCC toolchain for IOP (default)
 IOP_TOOL_PREFIX ?= mipsel-none-elf-
 IOP_CC ?= $(IOP_TOOL_PREFIX)gcc
 IOP_AS ?= $(IOP_TOOL_PREFIX)as
@@ -39,6 +55,7 @@ IOP_OBJCOPY ?= $(IOP_TOOL_PREFIX)objcopy
 IOP_STRIP ?= $(IOP_TOOL_PREFIX)strip
 IOP_ADDR2LINE ?= $(IOP_TOOL_PREFIX)addr2line
 IOP_RANLIB ?= $(IOP_TOOL_PREFIX)ranlib
+endif
 
 #
 # Definitions for the local toolchain

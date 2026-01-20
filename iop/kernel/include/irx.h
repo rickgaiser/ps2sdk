@@ -59,11 +59,34 @@ struct irx_import_stub
 /*
  * Ugly, yet functional.
  */
+#ifdef __clang__
+/*
+ * LLVM/Clang version: Generate entire import table header using inline assembly.
+ * This ensures the header is emitted immediately before the stubs, preserving
+ * the required layout for IRX format (LLVM lacks -fno-toplevel-reorder).
+ * Structure: magic(4) + next(4) + version(2) + mode(2) + name(8) = 20 bytes
+ */
+#define DECLARE_IMPORT_TABLE(modname, major, minor) \
+    __asm__ ( \
+        ".section .text\n\t" \
+        ".local _imp_" #modname "\n\t" \
+        "_imp_" #modname ":\n\t" \
+        ".word 0x41e00000\n\t" \
+        ".word 0\n\t" \
+        ".hword ((" #major " << 8) | " #minor ")\n\t" \
+        ".hword 0\n\t" \
+        "99:\n\t" \
+        ".ascii \"" #modname "\"\n\t" \
+        ".space 8 - (. - 99b)\n\t" \
+    );
+#else
+/* GCC version: uses section name hack for compatibility */
 #define DECLARE_IMPORT_TABLE(modname, major, minor)	\
 static struct irx_import_table _imp_##modname 		\
 	__attribute__((section(".text\n\t#"), unused))= {	\
 	magic: IMPORT_MAGIC, version: IRX_VER(major, minor),	\
 	name: #modname, };
+#endif
 
 #define STR(val) #val
 // .word 0x03e00008 == jr $ra (return immediately), this value will be patched later
@@ -96,11 +119,33 @@ struct irx_export_table {
 	void	*fptrs[];
 };
 
+#ifdef __clang__
+/*
+ * LLVM/Clang version: Generate entire export table header using inline assembly.
+ * Export symbol must be global for RegisterLibraryEntries().
+ * Structure: magic(4) + next(4) + version(2) + mode(2) + name(8) = 20 bytes
+ */
+#define DECLARE_EXPORT_TABLE(modname, major, minor) \
+    __asm__ ( \
+        ".section .text\n\t" \
+        ".globl _exp_" #modname "\n\t" \
+        "_exp_" #modname ":\n\t" \
+        ".word 0x41c00000\n\t" \
+        ".word 0\n\t" \
+        ".hword ((" #major " << 8) | " #minor ")\n\t" \
+        ".hword 0\n\t" \
+        "99:\n\t" \
+        ".ascii \"" #modname "\"\n\t" \
+        ".space 8 - (. - 99b)\n\t" \
+    );
+#else
+/* GCC version: uses section name hack for compatibility */
 #define DECLARE_EXPORT_TABLE(modname, major, minor)	\
 struct irx_export_table _exp_##modname			\
 	__attribute__((section(".text\n\t#"), unused)) = {	\
 	magic: EXPORT_MAGIC, version: IRX_VER(major, minor),	\
 	name: #modname, };
+#endif
 
 #define DECLARE_EXPORT(fptr) \
 	__asm__ (".section\t.text\n\t.word\t" STR(fptr));
